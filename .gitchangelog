@@ -1,0 +1,7 @@
+{
+	"scopes":[
+		"redis/connectors/clients",
+		"hfxbus"
+	],
+	"types":"atom"
+}

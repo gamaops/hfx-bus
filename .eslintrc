@@ -1,0 +1,31 @@
+{
+	"env": {
+        "es6": true,
+        "node": true
+    },
+    "parserOptions":{
+        "ecmaVersion":2018
+    },
+	"extends": "airbnb/base",
+	"rules":{
+		"no-underscore-dangle":"off",
+		"no-tabs":"off",
+		"no-console":"off",
+		"no-await-in-loop":"off",
+		"no-restricted-syntax":"off",
+		"no-continue":"off",
+		"no-param-reassign":"off",
+		"global-require":"off",
+		"consistent-return":"off",
+		"no-plusplus":"off",
+		"prefer-destructuring":"off",
+		"radix":"off",
+		"no-nested-ternary":"off",
+		"no-new-wrappers":"off",
+		"guard-for-in":"off",
+		"indent": [
+            "error",
+            "tab"
+        ]
+	}
+}
