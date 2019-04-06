@@ -451,3 +451,35 @@ This method removes **all** message's payloads from Redis.
 **Options**
 
 * **options.individually** - Remove each key individually, it's useful when you're using Redis Cluster, the default value is `false`.
+
+----------------------
+
+<a name="Claimer"></a>
+
+## Claimer
+
+```javascript
+const HFXBus = require('hfxbus');
+HFXBus.Claimer;
+```
+
+Claimer is an **optional** feature from HFXBus. The purpose of this feature is to ensure that dead consumers or dangling messages are handled properly. The Claimer will look for messages without acknowledgement and claim to another consumer. Dangling messages are messages that stuck and we're claimed many times, the behavior here is to kill the message telling to committers/listeners that the message was killed by the **isDead** property.
+
+----------------------
+
+<a name="Claimer+attachTo"></a>
+
+### attachTo
+
+```javascript
+HFXBus.Claimer.attachTo(bus);
+```
+
+Attaches a claimer to HFXBus instance. If you want to use the Claimer, this **must** be done before any **consume** method call.
+
+**Options**
+
+* **options.verifyInterval** - Number of milliseconds to run the claimer verify logic, checking if there are stuck messages, the default value is `15000`.
+* **options.maxRetries** - Maximum number of retries to claim a message before killing it the default value is `3`.
+* **options.pendingCount** - The number of pending messages to check on each verify interval, the default value is `500`.
+* **options.pendingTimeout** - Number of milliseconds that a message can keep unacknowledged before the claimer claims the message to other consumer, the default value is `15000`.
