@@ -1,24 +1,24 @@
 {
   "name": "hfxbus",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Redis backed high frequency exchange bus",
   "main": "index.js",
   "scripts": {
-	"integration": "mocha \"./test/**/*.int.js\" --recursive",
-	"test": "nyc mocha \"./test/**/*.spec.js\" --recursive",
-	"report:coverage": "nyc report --reporter=html",
-	"lint": "./node_modules/.bin/eslint --fix ./lib"
+    "integration": "mocha \"./test/**/*.int.js\" --recursive",
+    "test": "nyc mocha \"./test/**/*.spec.js\" --recursive",
+    "report:coverage": "nyc report --reporter=html",
+    "lint": "./node_modules/.bin/eslint --fix ./lib"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/exocet-engineering/hfx-bus.git"
   },
   "nyc": {
-	"exclude": [
-		"lib/add-streams-to-ioredis.js",
-		"test/**/*.spec.js",
-		"test/unit/await-event.js"
-	]
+    "exclude": [
+      "lib/add-streams-to-ioredis.js",
+      "test/**/*.spec.js",
+      "test/unit/await-event.js"
+    ]
   },
   "keywords": [
     "redis",
@@ -26,12 +26,12 @@
     "high",
     "frequency",
     "exchange",
-	"bus",
-	"microservice",
-	"event",
-	"sourcing",
-	"kafka",
-	"rabbitmq",
+    "bus",
+    "microservice",
+    "event",
+    "sourcing",
+    "kafka",
+    "rabbitmq",
     "queue"
   ],
   "author": "Exocet",
