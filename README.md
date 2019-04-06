@@ -14,6 +14,10 @@
 
 It's simple and effective to achieve high performance event-sourcing environment and microservice communication.
 
+```bash
+npm install --save hfxbus
+```
+
 ----------------------
 
 ## How it works
