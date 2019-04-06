@@ -1,3 +1,12 @@
+## 2019-04-06T17:58:49.153Z
+### 📝 - docs (hfxbus)
+
+#### master
+
+- Creating README.md and .npmignore
+
+-----------------------------
+
 ## 2019-04-06T16:17:38.986Z
 ### 🎨 - code improvement (hfxbus)
 
