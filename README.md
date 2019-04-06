@@ -36,12 +36,13 @@ const bus = new HFXBus();
 bus
   .setClientFactory(HFXBus.factories.ioredis)
   .on('error', (error) => console.log(error))
+  .on('async:error', (error) => console.log(error))
   .onAwait(
   'healthz:ping:pending',
     async (message) => {
       await message.load('ping', { decodeJson: true, drop: true });
       console.log(`Ping received: ${message.ping.timestamp}`);
-      message.payload.pong = { timestamp: Date.now() };
+      message.pong = { timestamp: Date.now() };
       await message.save('pong', { encodeJson: true });
       await message.resolve();
     }
@@ -64,6 +65,9 @@ And another file as **committer.js**:
 ```javascript
 const HFXBus = require('hfxbus');
 const bus = new HFXBus();
+bus
+  .on('error', (error) => console.log(error))
+  .setClientFactory(HFXBus.factories.ioredis);
 setInterval(async () => {
   let message = bus.message({
     streamName: 'ping',
