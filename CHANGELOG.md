@@ -1,3 +1,12 @@
+## 2019-04-06T14:22:36.885Z
+### ✅ - adding tests (hfxbus)
+
+#### master
+
+- Adding integration tests
+
+-----------------------------
+
 ## 2019-04-06T13:39:08.734Z
 ### ✅ - adding tests (hfxbus)
 
