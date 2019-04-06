@@ -5,11 +5,19 @@
   "main": "index.js",
   "scripts": {
 	"test": "nyc mocha \"./test/**/*.spec.js\" --recursive",
+	"report:coverage": "nyc report --reporter=html",
 	"lint": "./node_modules/.bin/eslint --fix ./lib"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/exocet-engineering/hfx-bus.git"
+  },
+  "nyc": {
+	"exclude": [
+		"lib/add-streams-to-ioredis.js",
+		"test/**/*.spec.js",
+		"test/unit/await-event.js"
+	]
   },
   "keywords": [
     "redis",
@@ -17,7 +25,12 @@
     "high",
     "frequency",
     "exchange",
-    "bus",
+	"bus",
+	"microservice",
+	"event",
+	"sourcing",
+	"kafka",
+	"rabbitmq",
     "queue"
   ],
   "author": "Exocet",

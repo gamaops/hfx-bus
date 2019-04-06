@@ -9,6 +9,7 @@ describe('errors', function () {
 		expect(errors).to.have.property('MessageListenerError').that.is.a('function');
 		expect(errors).to.have.property('ConsumerError').that.is.a('function');
 		expect(errors).to.have.property('ClaimerVerifyError').that.is.a('function');
+		expect(errors).to.have.property('MessageTimeoutError').that.is.a('function');
 
 	});
 
@@ -79,6 +80,30 @@ describe('errors', function () {
 			'hello'
 		);
 		expect(error).to.be.instanceOf(errors.ClaimerVerifyError);
+		expect(error.message).to.be.equal('hello');
+		expect(error.data).to.be.an('object');
+
+	});
+
+	it('MessageTimeoutError to have data', function () {
+
+		const data = {k1:true};
+		const error = new errors.MessageTimeoutError(
+			'hello',
+			data
+		);
+		expect(error).to.be.instanceOf(errors.MessageTimeoutError);
+		expect(error.message).to.be.equal('hello');
+		expect(error.data).to.be.equal(data);
+
+	});
+
+	it('MessageTimeoutError to have default data', function () {
+
+		const error = new errors.MessageTimeoutError(
+			'hello'
+		);
+		expect(error).to.be.instanceOf(errors.MessageTimeoutError);
 		expect(error.message).to.be.equal('hello');
 		expect(error.data).to.be.an('object');
 
