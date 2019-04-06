@@ -10,6 +10,7 @@ describe('errors', function () {
 		expect(errors).to.have.property('ConsumerError').that.is.a('function');
 		expect(errors).to.have.property('ClaimerVerifyError').that.is.a('function');
 		expect(errors).to.have.property('MessageTimeoutError').that.is.a('function');
+		expect(errors).to.have.property('DeadMessageError').that.is.a('function');
 
 	});
 
@@ -104,6 +105,30 @@ describe('errors', function () {
 			'hello'
 		);
 		expect(error).to.be.instanceOf(errors.MessageTimeoutError);
+		expect(error.message).to.be.equal('hello');
+		expect(error.data).to.be.an('object');
+
+	});
+
+	it('DeadMessageError to have data', function () {
+
+		const data = { k1: true };
+		const error = new errors.DeadMessageError(
+			'hello',
+			data
+		);
+		expect(error).to.be.instanceOf(errors.DeadMessageError);
+		expect(error.message).to.be.equal('hello');
+		expect(error.data).to.be.equal(data);
+
+	});
+
+	it('DeadMessageError to have default data', function () {
+
+		const error = new errors.DeadMessageError(
+			'hello'
+		);
+		expect(error).to.be.instanceOf(errors.DeadMessageError);
 		expect(error.message).to.be.equal('hello');
 		expect(error.data).to.be.an('object');
 

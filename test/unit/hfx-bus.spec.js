@@ -466,13 +466,13 @@ describe('HFXBus', function () {
 
 		var bus = new HFXBus();
 		bus.setClientFactory(fakeClientFactory);
-		await bus._publishMessageEvent({
+		await bus.publishMessageEvent({
 			trackerId,
 			messageId: 'mid',
 			trackerId: 'tid',
 			streamName: 'stn'
 		}, 'consumed', {data:'test'});
-		await bus._publishMessageEvent({
+		await bus.publishMessageEvent({
 			trackerId,
 			messageId: 'mid',
 			trackerId: 'tid',
