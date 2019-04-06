@@ -8,6 +8,7 @@
     },
 	"extends": "airbnb/base",
 	"rules":{
+		"import/no-extraneous-dependencies":"off",
 		"no-restricted-globals":"off",
 		"no-underscore-dangle":"off",
 		"no-tabs":"off",
