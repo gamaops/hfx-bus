@@ -66,7 +66,6 @@ const HFXBus = require('hfxbus');
 const bus = new HFXBus();
 setInterval(async () => {
   let message = bus.message({
-    groupName: 'healthz',
     streamName: 'ping',
     ping: { timestamp: Date.now() }
   });
