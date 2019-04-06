@@ -1,3 +1,12 @@
+## 2019-04-06T13:39:08.734Z
+### ✅ - adding tests (hfxbus)
+
+#### master
+
+- Finishing unit tests
+
+-----------------------------
+
 ## 2019-04-05T11:31:02.002Z
 ### ✅ - adding tests (hfxbus)
 
