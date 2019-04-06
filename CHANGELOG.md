@@ -1,3 +1,12 @@
+## 2019-04-06T19:18:02.630Z
+### 📝 - docs (hfxbus)
+
+#### master
+
+- Creating the API documentation
+
+-----------------------------
+
 ## 2019-04-06T17:58:49.153Z
 ### 📝 - docs (hfxbus)
 
