@@ -1,3 +1,12 @@
+## 2019-04-06T20:38:31.288Z
+### 📝 - docs (hfxbus)
+
+#### master
+
+- Add install command in README
+
+-----------------------------
+
 ## 2019-04-06T20:36:24.916Z
 ### 📝 - docs (hfxbus)
 
