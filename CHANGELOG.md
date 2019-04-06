@@ -1,3 +1,12 @@
+## 2019-04-06T16:17:38.986Z
+### 🎨 - code improvement (hfxbus)
+
+#### master
+
+- Handling dead messages with claimer
+
+-----------------------------
+
 ## 2019-04-06T14:22:36.885Z
 ### ✅ - adding tests (hfxbus)
 
