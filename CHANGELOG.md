@@ -1,3 +1,13 @@
+## 2019-04-06T20:21:53.510Z
+### 📝 - docs (hfxbus)
+
+#### master
+
+- Creating the message API documentation
+- Fixing README example
+
+-----------------------------
+
 ## 2019-04-06T19:18:02.630Z
 ### 📝 - docs (hfxbus)
 
