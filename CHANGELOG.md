@@ -1,3 +1,12 @@
+## 2019-04-06T20:36:24.916Z
+### 📝 - docs (hfxbus)
+
+#### master
+
+- Finishing Claimer API documentation
+
+-----------------------------
+
 ## 2019-04-06T20:21:53.510Z
 ### 📝 - docs (hfxbus)
 
