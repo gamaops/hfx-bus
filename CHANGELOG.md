@@ -1,3 +1,12 @@
+## 2019-04-07T14:06:57.834Z
+### 🎨 - code improvement (hfxbus)
+
+#### #3
+
+- Handling undefined payload keys
+
+-----------------------------
+
 ## 2019-04-06T20:38:31.288Z
 ### 📝 - docs (hfxbus)
 
