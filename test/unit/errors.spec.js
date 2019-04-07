@@ -11,6 +11,7 @@ describe('errors', function () {
 		expect(errors).to.have.property('ClaimerVerifyError').that.is.a('function');
 		expect(errors).to.have.property('MessageTimeoutError').that.is.a('function');
 		expect(errors).to.have.property('DeadMessageError').that.is.a('function');
+		expect(errors).to.have.property('UndefinedPayloadError').that.is.a('function');
 
 	});
 
@@ -129,6 +130,30 @@ describe('errors', function () {
 			'hello'
 		);
 		expect(error).to.be.instanceOf(errors.DeadMessageError);
+		expect(error.message).to.be.equal('hello');
+		expect(error.data).to.be.an('object');
+
+	});
+
+	it('UndefinedPayloadError to have data', function () {
+
+		const data = { k1: true };
+		const error = new errors.UndefinedPayloadError(
+			'hello',
+			data
+		);
+		expect(error).to.be.instanceOf(errors.UndefinedPayloadError);
+		expect(error.message).to.be.equal('hello');
+		expect(error.data).to.be.equal(data);
+
+	});
+
+	it('UndefinedPayloadError to have default data', function () {
+
+		const error = new errors.UndefinedPayloadError(
+			'hello'
+		);
+		expect(error).to.be.instanceOf(errors.UndefinedPayloadError);
 		expect(error.message).to.be.equal('hello');
 		expect(error.data).to.be.an('object');
 

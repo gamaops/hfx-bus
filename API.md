@@ -408,7 +408,7 @@ This method saves a payload key into your message (a key in Redis is created to 
 ### load
 
 ```javascript
-await message.save(key, options);
+await message.load(key, options);
 console.log(message[key])
 ```
 
@@ -419,6 +419,7 @@ This method loads a payload key from Redis.
 * **key** - A string with the payload identifier, the default value is `'payload'`.
 * **options.decodeJson** - If the value is an JavaScript type, specify this option as `true` so this method will decode the type saved in Redis, the default value is `false` that means that the value is a Buffer.
 * **options.drop** - Removes the payload from Redis, the default value is `false`.
+* **options.strictDefined** - Thrown an error if the key is not defined or just return `undefined`, the default value is `true` (it's going to throw).
 
 ----------------------
 
@@ -438,9 +439,9 @@ This method removes payloads from Redis.
 
 ----------------------
 
-<a name="message+drop"></a>
+<a name="message+purge"></a>
 
-### drop
+### purge
 
 ```javascript
 await message.purge(options);
