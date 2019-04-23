@@ -1,3 +1,12 @@
+## 2019-04-23T09:30:30.005Z
+### ✅ - adding tests (hfxbus)
+
+#### master
+
+- Creating benchmark
+
+-----------------------------
+
 ## 2019-04-23T08:31:09.854Z
 ### 🐎 - performance improvement (hfxbus)
 
