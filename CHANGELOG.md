@@ -1,3 +1,12 @@
+## 2019-04-23T08:31:09.854Z
+### 🐎 - performance improvement (hfxbus)
+
+#### master
+
+- Removing process.nextTick to use an event triggering approach to consume messages
+
+-----------------------------
+
 ## 2019-04-23T08:17:27.537Z
 ### 🐎 - performance improvement (hfxbus)
 
