@@ -4,6 +4,7 @@
   "description": "Redis backed high frequency exchange bus",
   "main": "index.js",
   "scripts": {
+    "benchmark": "node test/benchmark/hfx-bus.bench.js",
     "integration": "mocha \"./test/**/*.int.js\" --recursive",
     "test": "nyc mocha \"./test/**/*.spec.js\" --recursive",
     "report:coverage": "nyc report --reporter=html",
