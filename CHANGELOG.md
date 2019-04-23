@@ -1,3 +1,12 @@
+## 2019-04-23T08:17:27.537Z
+### 🐎 - performance improvement (hfxbus)
+
+#### master
+
+- Changing ID generation and async functions to event oriented to improve performance
+
+-----------------------------
+
 ## 2019-04-07T14:06:57.834Z
 ### 🎨 - code improvement (hfxbus)
 
