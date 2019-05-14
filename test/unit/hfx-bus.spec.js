@@ -620,6 +620,19 @@ describe('HFXBus', function () {
 
 	});
 
+	it('force consume', async function () {
+
+		var bus = new HFXBus();
+		bus._consumeRunning['gpn'] = true;
+		await awaitEvent.async(
+			'_consume:gpn',
+			bus,
+			async () => bus._forceConsume('gpn')
+		);
+		expect(bus._consumeRunning['gpn']).to.be.false;
+
+	});
+
 	it('consume', async function () {
 
 		var bus = new HFXBus();
@@ -655,11 +668,11 @@ describe('HFXBus', function () {
 		expect(await bus._consume('gpn')).to.be.undefined;
 		bus._groupsStreams['gpn'] = ['stn'];
 		bus._consumingCount['gpn'] = 1000;
-		expect(await bus._consume('gpn')).to.be.undefined;
+		expect(await bus._consume('gpn')).to.be.false;
 		client.xreadgroup = async () => null;
 		bus._groupsStreams['gpn'] = ['stn'];
 		bus._consumingCount['gpn'] = 0;
-		expect(await bus._consume('gpn')).to.be.undefined;
+		expect(await bus._consume('gpn')).to.be.false;
 
 	});
 
