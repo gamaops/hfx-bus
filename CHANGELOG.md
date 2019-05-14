@@ -1,3 +1,12 @@
+## 2019-05-14T21:27:07.416Z
+### ⬆️ - upgrading dependencies (redis/connectors/clients)
+
+#### master
+
+- Upgrading project dependencies
+
+-----------------------------
+
 ## 2019-05-14T21:24:04.854Z
 ### 🐛 - bug fix (hfxbus)
 
