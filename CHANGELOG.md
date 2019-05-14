@@ -1,3 +1,12 @@
+## 2019-05-14T21:24:04.854Z
+### 🐛 - bug fix (hfxbus)
+
+#### #5
+
+- HFXBus was not calling consume method when it was in idle state (waiting for new messages)
+
+-----------------------------
+
 ## 2019-04-23T09:30:30.005Z
 ### ✅ - adding tests (hfxbus)
 
