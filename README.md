@@ -11,7 +11,6 @@
 * Architecture, driver and payload agnostic
 * Limit the number of parallel processing done by your microservices
 * Unit and E2E tested
-* Other solutions as Bull have a different approach for jobs, that requires more computation an manual handling, HFXBus leaves the responsiblity of streaming messages to consumers for Redis Streams
 
 It's simple and effective to achieve high performance event-sourcing environment and microservice communication.
 
