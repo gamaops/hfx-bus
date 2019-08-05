@@ -2,24 +2,45 @@
   "name": "hfxbus",
   "version": "1.2.0",
   "description": "Redis backed high frequency exchange bus",
-  "main": "index.js",
+  "main": "build/index.js",
+  "types": "build/types/index.d.ts",
   "scripts": {
     "benchmark": "node test/benchmark/hfx-bus.bench.js",
-    "integration": "mocha \"./test/**/*.int.js\" --recursive",
-    "test": "nyc mocha \"./test/**/*.spec.js\" --recursive",
-    "report:coverage": "nyc report --reporter=html",
-    "lint": "./node_modules/.bin/eslint --fix ./lib"
+    "lint": "tslint --fix -c 'tslint.json' -e './node_modules/**/*' './**/*.ts'",
+    "prebuild": "rimraf build",
+    "serve": "node build/index.js | ./node_modules/.bin/bunyan",
+    "build": "tsc",
+    "start": "tsc -w",
+    "coverage": "nyc npm run test",
+    "test:unit": "mocha 'specs/unit/**/*.spec.ts' -b -r 'ts-node/register' -r 'module-alias/register'",
+    "test:e2e": "mocha 'specs/e2e/**/*.spec.ts' -b -r 'ts-node/register' -r 'module-alias/register'",
+    "test:tdd": "npm run test -- -w --extension ts"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/exocet-engineering/hfx-bus.git"
   },
+  "_moduleAliases": {
+    "@src": "src"
+  },
+  "files": [
+    "build/",
+    "lib/"
+  ],
   "nyc": {
-    "exclude": [
-      "lib/add-streams-to-ioredis.js",
-      "test/**/*.spec.js",
-      "test/unit/await-event.js"
-    ]
+    "include": [
+      "src/**/*.ts"
+    ],
+    "extension": [
+      ".ts"
+    ],
+    "require": [],
+    "reporter": [
+      "text-summary",
+      "html"
+    ],
+    "sourceMap": true,
+    "instrument": true
   },
   "keywords": [
     "redis",
@@ -35,25 +56,44 @@
     "rabbitmq",
     "queue"
   ],
-  "author": "Exocet",
-  "license": "Apache-2.0",
+  "contributors": [
+    {
+      "email": "victorfranlopes@outlook.com",
+      "name": "vflopes",
+      "url": "https://github.com/vflopes"
+    }
+  ],
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/exocet-engineering/hfx-bus/issues"
   },
   "homepage": "https://github.com/exocet-engineering/hfx-bus#readme",
   "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/glob": "^7.1.1",
+    "@types/mocha": "^5.2.7",
+    "@types/mock-require": "^2.0.0",
+    "@types/node": "^12.6.9",
+    "@types/sinon": "^7.0.13",
+    "@types/uuid": "^3.4.5",
     "benchmark": "^2.1.4",
     "chai": "^4.2.0",
-    "eslint": "^5.16.0",
-    "eslint-config-airbnb": "^17.1.0",
-    "eslint-plugin-import": "^2.17.2",
-    "ioredis": "^4.9.3",
-    "mocha": "^6.1.4",
+    "mocha": "^6.2.0",
+    "mock-require": "^3.0.3",
+    "module-alias": "^2.2.1",
     "nyc": "^14.1.1",
-    "proxyquire": "^2.1.0"
+    "rimraf": "^2.6.3",
+    "sinon": "^7.4.0",
+    "ts-node": "^8.3.0",
+    "tslint": "^5.18.0",
+    "typescript": "^3.5.3"
   },
   "dependencies": {
-    "eventemitter3": "^3.1.2",
-    "nanoid": "^2.0.1"
+    "@types/ioredis": "^4.0.13",
+    "@types/nanoid": "^2.0.0",
+    "eventemitter3": "^4.0.0",
+    "ioredis": "^4.14.0",
+    "nanoid": "^2.0.3",
+    "serialize-error": "^4.1.0"
   }
 }

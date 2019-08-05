@@ -1,0 +1,30 @@
+{
+	"defaultSeverity": "error",
+	"extends": [
+		"tslint:recommended"
+	],
+	"jsRules": {},
+	"rules": {
+		"no-console": false,
+		"quotemark": [
+			true,
+			"single"
+		],
+		"radix": false,
+		"no-any": false,
+		"arrow-parens": false,
+		"no-unused-expression": false,
+		"array-type": false,
+		"forin": false,
+		"indent": true,
+		"eofline": true,
+		"object-literal-sort-keys": false,
+		"no-var-requires": false
+	},
+	"rulesDirectory": [],
+	"linterOptions": {
+		"exclude": [
+			"build/**/*"
+		]
+	}
+}

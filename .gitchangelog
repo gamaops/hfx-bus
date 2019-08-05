@@ -1,7 +1,33 @@
 {
 	"scopes":[
-		"redis/connectors/clients",
-		"hfxbus"
+		"repository",
+		"project",
+		"deployment",
+		"integration"
 	],
-	"types":"atom"
+	"types": {
+		"🆕 - add code or file(s)": "when add code or file(s)",
+		"🎨 - improving the format/structure of the code": "when improving the format/structure of the code",
+		"🚀 - improving performance": "when improving performance",
+		"📝 - writing docs": "when writing docs",
+		"🔤 - renaming or fixing syntax errors": "when renaming or fixing syntax errors",
+		"🐛 - fixing a bug": "when fixing a bug",
+		"🔥 - removing code or file(s)": "when removing code or file(s)",
+		"💚 - fixing the CI build": "when fixing the CI build",
+		"🚥 - adding tests": "when adding tests",
+		"⬆️ - upgrading dependencies": "when upgrading dependencies",
+		"⬇️ - downgrading dependencies": "when downgrading dependencies",
+		"👕 - improving or fixing linters": "when improving or fixing linters",
+		"🚑 - critical hotfix": "when applying a critical hotfix",
+		"🎉 - initial commit": "when creating the initial commit",
+		"🐋 - work about Docker": "when working about Docker",
+		"👷 - adding CI build": "when adding CI build",
+		"🔧 - changing configuration parameters": "when changing configuration parameters",
+		"🖊️ - fixing typos": "when fixing typos",
+		"💩 - writing bad code that needs to be improved": "when writing bad code that needs to be improved",
+		"🔀 - merging branches": "when merging branches",
+		"👽 - updating code due to external API changes": "when updating code due to external API changes",
+		"💥 - introducing breaking changes": "when introducing breaking changes",
+		"🤡 - mocking things": "when mocking things"
+	}
 }
