@@ -1,3 +1,12 @@
+## 2019-08-05T10:43:26.516Z
+### 🚥 - adding tests (project)
+
+#### none
+
+- Add test files
+
+-----------------------------
+
 ## 2019-08-05T10:30:05.608Z
 ### 🐛 - fixing a bug (project)
 
