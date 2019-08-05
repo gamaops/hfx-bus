@@ -1,3 +1,12 @@
+## 2019-08-05T10:30:05.608Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix starting order on README example
+
+-----------------------------
+
 ## 2019-08-05T10:27:46.769Z
 ### 🐛 - fixing a bug (project)
 
