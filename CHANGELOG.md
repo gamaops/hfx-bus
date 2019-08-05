@@ -1,3 +1,12 @@
+## 2019-08-05T12:59:08.884Z
+### 📝 - writing docs (project)
+
+#### none
+
+- Fix README
+
+-----------------------------
+
 ## 2019-08-05T11:36:02.849Z
 ### 📝 - writing docs (project)
 
