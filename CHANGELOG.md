@@ -1,3 +1,13 @@
+## 2019-08-05T10:27:46.769Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix some bugs on first test
+- Rewrite readme
+
+-----------------------------
+
 ## 2019-08-05T09:35:21.702Z
 ### 🔥 - removing code or file(s) (project)
 
