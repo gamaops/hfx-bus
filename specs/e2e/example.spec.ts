@@ -41,6 +41,7 @@ const execute = async () => {
 
 	await producer.send({
 		stream: 'concat',
+		waitFor: true,
 		job
 	});
 

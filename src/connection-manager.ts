@@ -171,6 +171,8 @@ export class ConnectionManager {
 			await Promise.all(promises);
 		}
 
+		this.clients = {};
+
 	}
 
 }

@@ -52,11 +52,33 @@ export class Producer extends EventEmitter {
 		stream,
 		job,
 		capped,
+		waitFor
 	}: {
 		stream: string,
 		job: Job,
 		capped?: number,
+		waitFor?: boolean
 	}): Promise<ISentJob> {
+
+		const client = this.connection.getClient('streams') as Redis & { xadd: any };
+		let cappedOptions: Array<any> = [];
+		if (capped) {
+			cappedOptions = [
+				'MAXLEN',
+				'~',
+				capped,
+			];
+		}
+
+		const xaddArgs = [
+			`${this.connection.getKeyPrefix()}:str:${stream}`,
+			...cappedOptions,
+			'*',
+			'prd',
+			this.id,
+			'job',
+			job.id,
+		];
 
 		job.finished = async (timeout?: number): Promise<Job> => {
 			return new Promise((resolve, reject) => {
@@ -81,28 +103,14 @@ export class Producer extends EventEmitter {
 						resolve(job);
 					}
 				});
+				if (waitFor) {
+					client.xadd(...xaddArgs).catch(reject);
+				}
 			});
 		};
 
-		const client = this.connection.getClient('streams') as Redis & { xadd: any };
-		let cappedOptions: Array<any> = [];
-		if (capped) {
-			cappedOptions = [
-				'MAXLEN',
-				'~',
-				capped,
-			];
-		}
-
-		await client.xadd(
-			`${this.connection.getKeyPrefix()}:str:${stream}`,
-			...cappedOptions,
-			'*',
-			'prd',
-			this.id,
-			'job',
-			job.id,
-		);
+		if (!waitFor)
+			await client.xadd(...xaddArgs);
 
 		return job;
 

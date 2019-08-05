@@ -2,47 +2,48 @@
 
 ### Content
 
-* [HFXBus](#HFXBus)
-	* [id](#HFXBus+id) returns the bus id
-	* [listenerId](#HFXBus+listenerId) returns the listener id
-	* [setListenerEmitter](#HFXBus+setListenerEmitter) set a custom event emitter for PubSub events
-	* [setClientFactory](#HFXBus+setClientFactory) set the client factory (a.k.a Redis driver)
-	* [getClient](#HFXBus+getClient) get a Redis client from the client factory
-	* [onAwait](#HFXBus+onAwait) asynchronous listen to events
-	* [onceAwait](#HFXBus+onceAwait) asynchronous listen to events
-	* [listen](#HFXBus+listen) listen to PubSub events
-	* [commit](#HFXBus+commit) commit a message
-	* [forward](#HFXBus+forward) forward a message
-	* [message](#HFXBus+message) create a new message
-	* [consume](#HFXBus+consume) consume messages from streams
-	* [stop](#HFXBus+stop) stop bus and clients
-* [message](#message)
-	* [trackerId](#message+trackerId) message's tracker id
-	* [messageId](#message+messageId) message's id
-	* [groupName](#message+groupName) message's group name
-	* [streamName](#message+streamName) message's stream name
-	* [isAcknowledged](#message+isAcknowledged) boolean indicating if the message was acknowledged
-	* [isResolved](#message+isResolved) boolean indicating if the message is resolved
-	* [isDead](#message+isDead) boolean indicating if the message is dead
-	* [ack](#message+ack) acknowledge the message
-	* [resolve](#message+resolve) resolve the message
-	* [reject](#message+reject) reject the message
-	* [save](#message+save) save a payload key
-	* [load](#message+load) load a payload key
-	* [drop](#message+drop) drop a payload key
-	* [purge](#message+purge) drop all payload keys
-* [Claimer](#Claimer)
-	* [attachTo](#Claimer+attachTo) attach claimer to bus
+* [ConnectionManager](#ConnectionManager)
+	* [static method standalone](#ConnectionManager+standalone) creates a ConnectionManager for standalone Redis server
+	* [static method cluster](#ConnectionManager+cluster) creates a ConnectionManager for Redis Cluster
+	* [method getClient](#ConnectionManager+getClient) returns a Redis client
+	* [method getKeyPrefix](#ConnectionManager+getKeyPrefix) returns the defined key prefix
+	* [method stop](#ConnectionManager+stop) stops all Redis clients
+* [Producer](#Producer)
+	* [static attribute id](#Producer+id) the producer's id
+	* [method listen](#Producer+listen) listen for events of streams
+	* [method job](#Producer+job) creates a new job
+	* [method send](#Producer+send) sends a job to stream
+	* [event error](#Producer+error) emits errors
+	* [event stream](#Producer+stream) emits events from streams
+* [Consumer](#Consumer)
+	* [static attribute id](#Consumer+id) the consumer's id
+	* [method process](#Consumer+process) define a process for stream
+	* [method play](#Consumer+play) starts the consumer
+	* [method pause](#Consumer+pause) pauses the consumer
+	* [event error](#Consumer+error) emits errors
+	* [event drained](#Consumer+drained) emits when there're no jobs being consumed
+* [Job](#Job)
+	* [static attribute id](#Job+id) the job's id
+	* [method prefix](#Job+prefix) prefixes a key with the job's namespace
+	* [method set](#Job+set) sets value to key
+	* [method push](#Job+push) pushes keys to Redis
+	* [method get](#Job+get) gets value from key
+	* [method del](#Job+del) deletes a key
+	* [method pull](#Job+pull) pull keys from Redis
+	* [decorated method finished](#Job+finished) added when a job is sent by producer
+	* [decorated method reject](#Job+reject) added when a job is received by consumer
+	* [decorated method resolve](#Job+resolve) added when a job is received by consumer
+	* [decorated method release](#Job+release) added when a job is received by consumer
 
 ----------------------
 
-<a name="HFXBus"></a>
+<a name="ConnectionManager"></a>
 
-## HFXBus
+## ConnectionManager
 
-```javascript
-const HFXBus = require('hfxbus');
-const bus = new HFXBus(redis, options);
+```typescript
+import { ConnectionManager } from 'hfxbus';
+const connection = new ConnectionManager({});
 ```
 
 HFXBus is an EventEmitter and represents all the bus logic implementation.
