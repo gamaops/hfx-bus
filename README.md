@@ -122,7 +122,7 @@ const execute = async () => {
 execute().catch((error) => console.error(error));
 ```
 
-Remember to start **producer.js** before **consumer.js** as by default consumer will receive only new jobs, you can change this behavior, take a look at the API Documentation.
+Remember to start **consumer.js** before **producer.js** as by default consumer will receive only new jobs, you can change this behavior, take a look at the API Documentation.
 
 ----------------------
 
