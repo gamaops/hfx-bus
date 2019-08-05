@@ -1,3 +1,12 @@
+## 2019-08-05T11:12:02.721Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix finished job cycle
+
+-----------------------------
+
 ## 2019-08-05T10:43:26.516Z
 ### 🚥 - adding tests (project)
 
