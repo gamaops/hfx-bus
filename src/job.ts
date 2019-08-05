@@ -17,7 +17,6 @@ export class Job {
 
 	public readonly id: string;
 	public finished: any;
-	public data: any = {};
 
 	private client: RedisClient & Redis;
 	private stacks: {
@@ -75,7 +74,7 @@ export class Job {
 
 	public async pull<T = { [key: string]: any }>(): Promise<T> {
 		const values: any = {};
-		if (this.stacks.get.length > 0 && this.stacks.del.length > 0) {
+		if (this.stacks.get.length > 0 || this.stacks.del.length > 0) {
 			const results = await this.exec([
 				...this.stacks.get,
 				...this.stacks.del,
@@ -98,7 +97,6 @@ export class Job {
 					continue;
 				}
 				values[key] = result;
-				this.data[key] = result;
 			}
 			this.stacks.get = [];
 			this.stacks.getMap = {};

@@ -8,7 +8,7 @@
 * Support for **correct** message acknowledgement, resolution and rejection states
 * Message's payload can be raw Buffer or JSON
 * Claiming logic to retry and collect stalled out messages
-* Architecture, driver and payload agnostic
+* Architecture and payload agnostic
 * Limit the number of parallel processing done by your microservices
 * Unit and E2E tested
 

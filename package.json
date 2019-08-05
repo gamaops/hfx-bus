@@ -12,9 +12,9 @@
     "build": "tsc",
     "start": "tsc -w",
     "coverage": "nyc npm run test",
-    "test:unit": "mocha 'specs/unit/**/*.spec.ts' -b -r 'ts-node/register' -r 'module-alias/register'",
+    "test:unit": "mocha 'specs/unit/**/*.spec.ts' -b -r 'ts-node/register' -r 'module-alias/register' -r './specs/utils/module.js'",
     "test:e2e": "mocha 'specs/e2e/**/*.spec.ts' -b -r 'ts-node/register' -r 'module-alias/register'",
-    "test:tdd": "npm run test -- -w --extension ts"
+    "test:tdd": "npm run test:unit -- -w --extension ts"
   },
   "repository": {
     "type": "git",
