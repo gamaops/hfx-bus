@@ -1,3 +1,12 @@
+## 2019-08-05T20:09:42.162Z
+### 🚥 - adding tests (project)
+
+#### none
+
+- Add helpers and Job tests
+
+-----------------------------
+
 ## 2019-08-05T12:59:08.884Z
 ### 📝 - writing docs (project)
 
