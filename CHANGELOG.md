@@ -1,3 +1,12 @@
+## 2019-08-05T09:35:21.702Z
+### 🔥 - removing code or file(s) (project)
+
+#### none
+
+- Remove old HFXBus js
+
+-----------------------------
+
 ## 2019-08-05T09:34:46.830Z
 ### 🆕 - add code or file(s) (project)
 
