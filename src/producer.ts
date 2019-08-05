@@ -95,7 +95,7 @@ export class Producer extends EventEmitter {
 		}
 
 		await client.xadd(
-			stream,
+			`${this.connection.getKeyPrefix()}:str:${stream}`,
 			...cappedOptions,
 			'*',
 			'prd',

@@ -77,11 +77,11 @@ export class Job {
 		const values: any = {};
 		if (this.stacks.get.length > 0 && this.stacks.del.length > 0) {
 			const results = await this.exec([
-				...this.stacks.set,
+				...this.stacks.get,
 				...this.stacks.del,
 			]);
 			for (let i = 0; i < this.stacks.get.length; i++) {
-				if (results[0]) // TODO: Is right to ignore error?
+				if (results[i][0]) // TODO: Is right to ignore error?
 					continue;
 				const result = results[i].pop();
 				const [command, prefixedKey] = this.stacks.get[i];

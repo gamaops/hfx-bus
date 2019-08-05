@@ -38,6 +38,7 @@ export class Consumer extends EventEmitter {
 			processor: IStreamProcessor,
 			fromId: string,
 			deadline: number,
+			stream: string
 		},
 	} = {};
 
@@ -68,10 +69,11 @@ export class Consumer extends EventEmitter {
 		fromId?: string,
 		deadline?: number,
 	}): Consumer {
-		this.processors[stream] = {
+		this.processors[`${this.connection.getKeyPrefix()}:str:${stream}`] = {
 			processor,
 			fromId,
 			deadline,
+			stream
 		};
 		return this;
 	}
@@ -186,7 +188,9 @@ export class Consumer extends EventEmitter {
 			return job;
 		};
 
-		const channel = `${this.connection.getKeyPrefix()}:chn:${stream}:${data.prd}`;
+
+		const streamName = this.processors[stream].stream;
+		const channel = `${this.connection.getKeyPrefix()}:chn:${streamName}:${data.prd}`;
 		const client = this.connection.getClient('streams') as Redis;
 		const deadlineTimespan = this.processors[stream].deadline;
 
@@ -217,13 +221,13 @@ export class Consumer extends EventEmitter {
 				this.group,
 				id,
 			);
-			await client.publish(channel, `{"str":"${stream}","job":"${data.job}"}`);
+			await client.publish(channel, `{"str":"${streamName}","job":"${data.job}"}`);
 			finish();
 		};
 
 		job.reject = async (error) => {
 			const serialized = serializeError(error);
-			await client.publish(channel, `{"str":"${stream}","job":"${data.job}","err":${serialized}}`);
+			await client.publish(channel, `{"str":"${streamName}","job":"${data.job}","err":${serialized}}`);
 			finish();
 		};
 

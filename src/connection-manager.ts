@@ -120,7 +120,7 @@ export class ConnectionManager {
 	}: {
 		maxWait?: number,
 		force?: boolean,
-	}) {
+	} = {}) {
 
 		const promises: Array<Promise<any>> = [];
 

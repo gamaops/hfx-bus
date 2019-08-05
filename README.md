@@ -5,12 +5,13 @@
 * Focused on performance for asynchronous communication between endpoints
 * Replaces Kafka, RabbitMQ and other brokers
 * Support Redis Standalone or Cluster
-* Support for message acknowledgement, resolution and rejection states
+* Support for **correct** message acknowledgement, resolution and rejection states
 * Message's payload can be raw Buffer or JSON
-* Claiming logic to retry and collect dead messages
+* Claiming logic to retry and collect stalled out messages
 * Architecture, driver and payload agnostic
 * Limit the number of parallel processing done by your microservices
-* Unit and integration tested
+* Unit and E2E tested
+* Other solutions as Bull have a different approach for jobs, that requires more computation an manual handling, HFXBus leaves the responsiblity of streaming messages to consumers for Redis Streams
 
 It's simple and effective to achieve high performance event-sourcing environment and microservice communication.
 
@@ -20,13 +21,19 @@ npm install --save hfxbus
 
 ----------------------
 
+## Upgrading
+
+This project was rewritten in Typescript on v2, if you're running v1 and need reference please visit the branch v1.
+
+----------------------
+
 ## How it works
 
 HFXBus uses [Redis Streams](https://redis.io/topics/streams-intro) to enqueue messages and groups to consume messages, but these streams only controls the flow of messages to make the processing lighweight in networking and memory/CPU aspects. All payload is stored as regular Redis keys and it's up to your endpoints decide which keys need to be loaded/created.
 
-[Redis PubSub](https://redis.io/topics/pubsub) is used to emit events happening to messages like when a message is **forwarded** or **consumed**, so your endpoints have feedback about messages events.
+[Redis PubSub](https://redis.io/topics/pubsub) is used to emit events happening to messages like when a message is **consumed**, so your endpoints have feedback about messages events.
 
-And finally, with [XTRIM](https://redis.io/commands/xtrim) you can keep your Redis server memory utilization low and with [XCLAIM](https://redis.io/commands/xclaim) improve your (micro)services redundancy/resilience.
+And finally, with [XTRIM](https://redis.io/commands/xtrim) you can keep your Redis server memory utilization low and with [XCLAIM](https://redis.io/commands/xclaim) improve your (micro)services redundancy/resilience. We implemented the command XRETRY using Lua Scripting to achieve a reliable way to retry stalled out messages.
 
 ----------------------
 
@@ -34,66 +41,91 @@ And finally, with [XTRIM](https://redis.io/commands/xtrim) you can keep your Red
 
 First, setup a Redis running at `127.0.0.1:6379` (you can use [docker](https://hub.docker.com/_/redis)). And then create a **consumer.js** file with the following content:
 
-```javascript
-const HFXBus = require('hfxbus');
-const bus = new HFXBus();
-bus
-  .setClientFactory(HFXBus.factories.ioredis)
-  .on('error', (error) => console.log(error))
-  .on('async:error', (error) => console.log(error))
-  .onAwait(
-  'healthz:ping:pending',
-    async (message) => {
-      await message.load('ping', { decodeJson: true, drop: true });
-      console.log(`Ping received: ${message.ping.timestamp}`);
-      message.pong = { timestamp: Date.now() };
-      await message.save('pong', { encodeJson: true });
-      await message.resolve();
-    }
-  );
-HFXBus.Claimer
-  .attachTo(
-    bus
-  ).consume(
-    'healthz',
-    ['ping']
-  ).then(
-    () => console.log(`Bus ${bus.id} started!`)
-  ).catch(
-    (error) => console.log(error)
-  );
+```typescript
+import { ConnectionManager, Consumer } from 'hfxbus';
+
+const connection = ConnectionManager.standalone({
+  port: 6379,
+  host: '127.0.0.1'
+});
+
+const consumer = new Consumer(connection, { group: 'worldConcat' });
+
+consumer.process({
+  stream: 'concat',
+  processor: async (job) => {
+    
+    console.log(`Received job: ${job.id}`);
+
+    const {
+      inbound
+    } = await job.get('inbound', false).del('inbound').pull();
+
+    console.log(`Received inbound: ${inbound}`);
+
+    await job.set('outbound', `${inbound} world!`).push();
+
+    console.log('Job consumed');
+
+  }
+});
+
+consumer.play().then(() => {
+  console.log(`Consumer is waiting for jobs (consumer id is ${consumer.id})`);
+}).catch((error) => console.error(error));
+
 ```
 
-And another file as **committer.js**:
+And another file as **producer.js**:
 
 ```javascript
-const HFXBus = require('hfxbus');
-const bus = new HFXBus();
-bus
-  .on('error', (error) => console.log(error))
-  .setClientFactory(HFXBus.factories.ioredis);
-setInterval(async () => {
-  let message = bus.message({
-    streamName: 'ping',
-    ping: { timestamp: Date.now() }
+import { ConnectionManager, Producer } from 'hfxbus';
+
+const connection = ConnectionManager.standalone({
+  port: 6379,
+  host: '127.0.0.1'
+});
+
+const producer = new Producer(connection);
+
+const execute = async () => {
+  
+  await producer.listen();
+
+  console.log(`Producer is listening for messages (producer id is ${producer.id})`);
+
+  const job = producer.job();
+
+  console.log(`Created job: ${job.id}`);
+
+  await job.set('inbound', 'Hello').push();
+
+  await producer.send({
+    stream: 'concat',
+    job
   });
-  await message.save('ping', { encodeJson: true });
-  message = await bus.commit(message);
-  await message.load('pong', { decodeJson: true, drop: true });
-  console.log(`Pong received: ${message.pong.timestamp}`);
-}, 5000);
+
+  console.log(`Sent job: ${job.id}`);
+  
+  await job.finished();
+
+  console.log(`Finished job: ${job.id}`);
+
+  const {
+    outbound
+  } = await job.get('outbound', false).del('outbound').pull();
+
+  console.log(`Outbound is: ${outbound}`);
+
+}
+
+execute().catch((error) => console.error(error));
 ```
 
-Install [ioredis](https://github.com/luin/ioredis) to be the HFXBus Redis driver. Now just run **consumer.js** and **committer.js** and see HFXBus running.
+Remember to start **producer.js** before **consumer.js** as by default consumer will receive only new jobs, you can change this behavior, take a look at the API Documentation.
 
 ----------------------
 
 ## API Documentation
 
 Your can learn more about HFXBus API [clicking here](https://github.com/exocet-engineering/hfx-bus/blob/master/API.md).
-
-----------------------
-
-## The dream
-
-I really would like to see HFXBus implementation in other languages (Go, Python, Java...), so if you want to contribute to this dream, we can code together, please contact me.
