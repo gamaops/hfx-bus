@@ -1,3 +1,12 @@
+## 2019-08-05T11:36:02.849Z
+### 📝 - writing docs (project)
+
+#### none
+
+- Add API documentation for ConnectionManager
+
+-----------------------------
+
 ## 2019-08-05T11:12:02.721Z
 ### 🐛 - fixing a bug (project)
 
