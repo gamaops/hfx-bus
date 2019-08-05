@@ -1,3 +1,12 @@
+## 2019-08-05T09:34:46.830Z
+### 🆕 - add code or file(s) (project)
+
+#### none
+
+- Refactor entire library into typescript
+
+-----------------------------
+
 ## 2019-05-14T21:27:07.416Z
 ### ⬆️ - upgrading dependencies (redis/connectors/clients)
 
