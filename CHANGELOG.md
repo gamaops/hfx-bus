@@ -1,3 +1,12 @@
+## 2019-08-06T11:17:24.962Z
+### 📝 - writing docs (project)
+
+#### none
+
+- Add API reference to Consumer and Producer
+
+-----------------------------
+
 ## 2019-08-05T20:09:42.162Z
 ### 🚥 - adding tests (project)
 
