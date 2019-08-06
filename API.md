@@ -9,21 +9,21 @@
 	* [method getKeyPrefix](#ConnectionManager+getKeyPrefix) returns the defined key prefix
 	* [method stop](#ConnectionManager+stop) stops all Redis clients
 * [Producer](#Producer)
-	* [static attribute id](#Producer+id) the producer's id
+	* [attribute id](#Producer+id) the producer's id
 	* [method listen](#Producer+listen) listen for events of streams
 	* [method job](#Producer+job) creates a new job
 	* [method send](#Producer+send) sends a job to stream
 	* [event error](#Producer+error) emits errors
 	* [event stream](#Producer+stream) emits events from streams
 * [Consumer](#Consumer)
-	* [static attribute id](#Consumer+id) the consumer's id
+	* [attribute id](#Consumer+id) the consumer's id
 	* [method process](#Consumer+process) define a process for stream
 	* [method play](#Consumer+play) starts the consumer
 	* [method pause](#Consumer+pause) pauses the consumer
 	* [event error](#Consumer+error) emits errors
 	* [event drained](#Consumer+drained) emits when there're no jobs being consumed
 * [Job](#Job)
-	* [static attribute id](#Job+id) the job's id
+	* [attribute id](#Job+id) the job's id
 	* [method prefix](#Job+prefix) prefixes a key with the job's namespace
 	* [method set](#Job+set) sets value to key
 	* [method push](#Job+push) pushes keys to Redis
@@ -127,3 +127,212 @@ Stops all Redis clients.
 
 * **options.maxWait** - Optional number of milliseconds to wait before forcing all connections to close, if undefined (default case) it'll wait forever.
 * **options.force** - Optional boolean indicating the method to force all connections to close, the default value is `false`.
+
+----------------------
+
+<a name="Producer"></a>
+
+## Producer
+
+```typescript
+import { Producer } from 'hfxbus';
+const producer = new Producer(connection);
+```
+
+Producer is the class that sends jobs to consumers, they can just fire and forget the jobs or await for their completion. Producers can also be passive, listening for all completions from streams.
+
+**Arguments**
+
+* **connection** - An instance of ConnectionManager.
+
+----------------------
+
+<a name="Producer+id"></a>
+
+### attribute id
+
+```typescript
+producer.id;
+```
+
+The id of producer, this id is used to listen to pub/sub channels that consumers publishes jobs completions.
+
+----------------------
+
+<a name="Producer+listen"></a>
+
+### method listen
+
+```typescript
+await producer.listen();
+await producer.listen('stream');
+```
+
+This method subscribes the producer to streams channels, the first option is to call it without arguments so producer will listen only for jobs completions that it produced. The second option is to call with the streams names to listen for jobs completions, all completions of that stream will be received. You can call this method multiple times.
+
+**Arguments**
+
+* **...streams** - Array of streams to listen.
+
+----------------------
+
+<a name="Producer+send"></a>
+
+### method send
+
+```typescript
+await producer.send(options);
+```
+
+Sends the job to the specified stream.
+
+**Arguments**
+
+* **options.stream** - Required string with the stream's name.
+* **options.job** - Required, the job instance.
+* **options.capped** - Maximum number of messages to keep in the stream, see the Redis XTRIM command to understand this options. By default, the stream won't be capped.
+* **options.waitFor** - Optional boolean indicating if the **decorated method finished** must be added to job, if this parameter is false (the defaul valur) the behavior of send will be fire and forget, otherwise you can await for the job's completion. Remember to call **Producer.listen()** before sending jobs if you want to await for jobs to be finished.
+
+----------------------
+
+<a name="Producer+error"></a>
+
+### event error
+
+```typescript
+producer.on('error', (error) => {});
+```
+
+Emitted when an error occurs on producer.
+
+**Listener's Arguments**
+
+* **error** - All errors of HFXBus have the **code** and **errno** properties indicating the error's kind.
+
+----------------------
+
+<a name="Producer+stream"></a>
+
+### event stream
+
+```typescript
+producer.on('myStreamName', (jobId, error) => {});
+```
+
+If you use the method **Producer.listen** to listen to streams this event will be emitted for each completed job.
+
+**Listener's Arguments**
+
+* **jobId** - The ID of the completed job.
+* **error** - If the job's processing caused an error this parameter will contain the error data.
+
+----------------------
+
+<a name="Consumer"></a>
+
+## Consumer
+
+```typescript
+import { Consumer } from 'hfxbus';
+const producer = new Consumer(connection, options);
+```
+
+Consumer is the class that process jobs from streams. Consumers can also claim stalled out jobs, see the Redis XCLAIM command to understand this behavior. Consumer's group is the group of consumers that will process Redis Streams, ensuring that only one consumer in the group will process the job.
+
+**Arguments**
+
+* **connection** - An instance of ConnectionManager.
+* **options.group** - Required string with the consumer group name.
+* **options.concurrency** - Maximum number of parallel jobs being processed by this consumer, the default value is `1`.
+* **options.blockTimeout** - Number of milliseconds to block the XREADGROUP command, the default value is `5000`.
+* **options.claimInterval** - Number of milliseconds schedule the claim strategy for stalled out jobs. The claim strategy in interval allows us to not overload consumers with just salled out jobs. If it's not specified the consumer will not run claim checks (this is the default).
+* **options.retryLimit** - Maximum number of retries allowed per job, the default value is `3`.
+* **options.claimPageSize** - Page size to iterate over XPENDING list, the default value is `100`, usually you'll not touch this parameter.
+* **options.claimDeadline** - Number of milliseconds to consider a job stalled out (in the XPEDING list), the default value is `30000`.
+
+----------------------
+
+<a name="Consumer+id"></a>
+
+### attribute id
+
+```typescript
+consumer.id;
+```
+
+The id of consumer, this id is used to attach the consumer to consumer groups.
+
+----------------------
+
+<a name="Consumer+process"></a>
+
+### method process
+
+```typescript
+consumer.process(options);
+```
+
+Defines a processor for a stream.
+
+**Arguments**
+
+* **options.stream** - Required string with the stream name to be processed.
+* **options.processor** - Required **async function** that receives a job and process it.
+* **options.fromId** - The Redis Stream ID that the consumer group will start processing jobs, see the XGROUP command to understand what this ID means, the default value is `$` (only new jobs will be received).
+* **options.deadline** - Optional number of milliseconds to await for the procesor to be executed (is recommended to always set this parameter), but you can se this to 0 to disable the deadline. The default value is `30000`.
+
+----------------------
+
+<a name="Consumer+play"></a>
+
+### method play
+
+```typescript
+await consumer.play();
+```
+
+Starts the consumer's routine to get jobs from streams, you should call this method after defining the processors using the **Consumer.process** method.
+
+----------------------
+
+<a name="Consumer+pause"></a>
+
+### method pause
+
+```typescript
+await consumer.pause(timeout);
+```
+
+Gracefuly pauses the consumer.
+
+**Arguments**
+
+* **timout** - Optional number of milliseconds to await for the consumer to stop, a secure value is always something greater than the **blockTimeout** value.
+
+----------------------
+
+<a name="Consumer+error"></a>
+
+### event error
+
+```typescript
+consumer.on('error', (error) => {});
+```
+
+Emitted when an error occurs on consumer.
+
+**Listener's Arguments**
+
+* **error** - All errors of HFXBus have the **code** and **errno** properties indicating the error's kind.
+
+----------------------
+
+<a name="Consumer+drained"></a>
+
+### event drained
+
+```typescript
+consumer.on('drained', () => {});
+```
+
+Emitted when the consumer processed all jobs.

@@ -21,7 +21,8 @@
     "url": "git+https://github.com/exocet-engineering/hfx-bus.git"
   },
   "_moduleAliases": {
-    "@src": "src"
+    "@src": "src",
+    "@lib": "lib"
   },
   "files": [
     "build/",

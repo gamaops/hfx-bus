@@ -20,7 +20,7 @@ export class Producer extends EventEmitter {
 			try {
 				message = JSON.parse(message);
 				this.emit(`${message.job}:${message.str}`, message.err);
-				this.emit(message.str, message.job, message.err);
+				this.emit(message.str, message.job, message.err || null);
 			} catch (error) {
 				error.pubsub = {message, channel};
 				this.emit('error', setErrorKind(error, 'MESSAGE_PARSING'));
@@ -80,34 +80,35 @@ export class Producer extends EventEmitter {
 			job.id,
 		];
 
-		job.finished = async (timeout?: number): Promise<Job> => {
-			return new Promise((resolve, reject) => {
-				const event = `${job.id}:${stream}`;
-				let timeoutId: any = null;
-				if (timeout) {
-					timeoutId = setTimeout(() => {
-						this.removeAllListeners(event);
-						reject(setErrorKind(
-							new Error(`Timeouted while waiting to be finished: ${timeout}ms`),
-							'FINISH_TIMEOUT',
-						));
-					}, timeout);
-				}
-				this.once(event, (error) => {
-					if (timeoutId) {
-						clearTimeout(timeoutId);
+		if (waitFor)
+			job.finished = async (timeout?: number): Promise<Job> => {
+				return new Promise((resolve, reject) => {
+					const event = `${job.id}:${stream}`;
+					let timeoutId: any = null;
+					if (timeout) {
+						timeoutId = setTimeout(() => {
+							this.removeAllListeners(event);
+							reject(setErrorKind(
+								new Error(`Timeouted while waiting to be finished: ${timeout}ms`),
+								'FINISH_TIMEOUT',
+							));
+						}, timeout);
 					}
-					if (error) {
-						reject(error);
-					} else {
-						resolve(job);
+					this.once(event, (error) => {
+						if (timeoutId) {
+							clearTimeout(timeoutId);
+						}
+						if (error) {
+							reject(error);
+						} else {
+							resolve(job);
+						}
+					});
+					if (waitFor) {
+						client.xadd(...xaddArgs).catch(reject);
 					}
 				});
-				if (waitFor) {
-					client.xadd(...xaddArgs).catch(reject);
-				}
-			});
-		};
+			};
 
 		if (!waitFor)
 			await client.xadd(...xaddArgs);

@@ -194,14 +194,17 @@ export class Consumer extends EventEmitter {
 		const client = this.connection.getClient('streams') as Redis;
 		const deadlineTimespan = this.processors[stream].deadline;
 
-		let deadline: any = setTimeout(() => {
-			if (job.reject) {
-				job.reject(setErrorKind(
-					new Error(`The job was running for too long (${deadlineTimespan}ms)`),
-					'DEADLINE_TIMEOUT',
-				));
-			}
-		}, deadlineTimespan);
+		let deadline: any = null;
+		
+		if (deadlineTimespan && deadlineTimespan !== Infinity)
+			deadline = setTimeout(() => {
+				if (job.reject) {
+					job.reject(setErrorKind(
+						new Error(`The job was running for too long (${deadlineTimespan}ms)`),
+						'DEADLINE_TIMEOUT',
+					));
+				}
+			}, deadlineTimespan);
 
 		const finish = () => {
 			delete job.resolve;
@@ -261,7 +264,6 @@ export class Consumer extends EventEmitter {
 			this.options.concurrency! - this.processingCount,
 			this.options.claimPageSize,
 			this.options.claimDeadline,
-
 		);
 		if (jobs && jobs.length > 0) {
 			for (const job of jobs) {
@@ -331,7 +333,22 @@ export class Consumer extends EventEmitter {
 					'mkstream',
 				);
 			} catch (error) {
-				if (error.message.includes('BUSYGROUP')) { continue; }
+				if (error.message.includes('BUSYGROUP')) { 
+					try {
+						await client.xgroup(
+							'setid',
+							stream,
+							this.group,
+							fromId
+						);
+					} catch (error) {
+						if (error.message.includes('BUSYGROUP')) {
+							continue;
+						}
+						throw error;
+					}
+					continue;
+				}
 				throw error;
 			}
 		}
