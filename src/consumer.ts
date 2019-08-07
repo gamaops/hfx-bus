@@ -10,6 +10,7 @@ export type IStreamProcessor = (job: IReceivedJob) => Promise<any>;
 
 export interface IConsumerOptions {
 	group: string;
+	id?: string;
 	concurrency?: number;
 	blockTimeout?: number;
 	claimInterval?: number;
@@ -36,16 +37,18 @@ export class Consumer extends EventEmitter {
 	private processors: {
 		[key: string]: {
 			processor: IStreamProcessor,
+			readFrom: string,
 			fromId: string,
 			deadline: number,
-			stream: string
+			stream: string,
+			setId: boolean
 		},
 	} = {};
 
 	constructor(connection: ConnectionManager, options: IConsumerOptions) {
 		super();
 		this.connection = connection;
-		this.id = nanoid(HFXBUS_ID_SIZE);
+		this.id = options.id || nanoid(HFXBUS_ID_SIZE);
 		this.consuming = false;
 		this.options = {
 			concurrency: 1,
@@ -61,19 +64,25 @@ export class Consumer extends EventEmitter {
 	public process({
 		stream,
 		processor,
+		readFrom = '>',
 		fromId = '$',
 		deadline = 30000,
+		setId = false
 	}: {
 		stream: string,
 		processor: IStreamProcessor,
+		readFrom?: string,
 		fromId?: string,
 		deadline?: number,
+		setId?: boolean
 	}): Consumer {
 		this.processors[`${this.connection.getKeyPrefix()}:str:${stream}`] = {
 			processor,
 			fromId,
+			readFrom,
 			deadline,
-			stream
+			stream,
+			setId
 		};
 		return this;
 	}
@@ -83,7 +92,7 @@ export class Consumer extends EventEmitter {
 		await this.ensureStreamGroups();
 
 		this.streams = Object.keys(this.processors);
-		this.streamsIdMap = this.streams.map(() => '>');
+		this.streamsIdMap = this.streams.map((stream) => this.processors[stream].readFrom);
 
 		if (this.options.claimInterval) {
 			this.claimer = setInterval(() => {
@@ -321,6 +330,7 @@ export class Consumer extends EventEmitter {
 	private async ensureStreamGroups() {
 		const client = this.connection.getClient(this.id) as Redis;
 		for (const stream in this.processors) {
+			const processor = this.processors[stream];
 			const {
 				fromId,
 			} = this.processors[stream];
@@ -333,19 +343,18 @@ export class Consumer extends EventEmitter {
 					'mkstream',
 				);
 			} catch (error) {
-				if (error.message.includes('BUSYGROUP')) { 
-					try {
-						await client.xgroup(
-							'setid',
-							stream,
-							this.group,
-							fromId
-						);
-					} catch (error) {
-						if (error.message.includes('BUSYGROUP')) {
-							continue;
+				if (error.message.includes('BUSYGROUP')) {
+					if (processor.setId) {
+						try {
+							await client.xgroup(
+								'setid',
+								stream,
+								this.group,
+								fromId
+							);
+						} catch (error) {
+							throw error;
 						}
-						throw error;
 					}
 					continue;
 				}
