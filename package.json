@@ -1,6 +1,6 @@
 {
   "name": "hfxbus",
-  "version": "2.0.0-rc.2",
+  "version": "2.0.0",
   "description": "Redis backed high frequency exchange bus",
   "main": "build/index.js",
   "types": "build/types/index.d.ts",
