@@ -23,7 +23,7 @@ export declare class ConnectionManager {
     });
     getClient(key: string): RedisClient;
     getKeyPrefix(): string;
-    stop({ maxWait, force, }: {
+    stop({ maxWait, force, }?: {
         maxWait?: number;
         force?: boolean;
     }): Promise<void>;

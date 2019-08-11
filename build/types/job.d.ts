@@ -11,7 +11,6 @@ export interface IReceivedJob extends Job {
 export declare class Job {
     readonly id: string;
     finished: any;
-    data: any;
     private client;
     private stacks;
     constructor(client: RedisClient & Redis, id?: string);

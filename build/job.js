@@ -7,7 +7,6 @@ const nanoid_1 = __importDefault(require("nanoid"));
 const helpers_1 = require("./helpers");
 class Job {
     constructor(client, id) {
-        this.data = {};
         this.stacks = {
             set: [],
             get: [],
@@ -50,14 +49,15 @@ class Job {
     }
     async pull() {
         const values = {};
-        if (this.stacks.get.length > 0 && this.stacks.del.length > 0) {
+        if (this.stacks.get.length > 0 || this.stacks.del.length > 0) {
             const results = await this.exec([
-                ...this.stacks.set,
+                ...this.stacks.get,
                 ...this.stacks.del,
             ]);
             for (let i = 0; i < this.stacks.get.length; i++) {
-                if (results[0])
+                if (results[i][0]) {
                     continue;
+                }
                 const result = results[i].pop();
                 const [command, prefixedKey] = this.stacks.get[i];
                 const key = this.stacks.getMap[prefixedKey];
@@ -75,7 +75,6 @@ class Job {
                     continue;
                 }
                 values[key] = result;
-                this.data[key] = result;
             }
             this.stacks.get = [];
             this.stacks.getMap = {};

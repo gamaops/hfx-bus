@@ -20,7 +20,7 @@ class Consumer extends eventemitter3_1.default {
         this.claimer = null;
         this.processors = {};
         this.connection = connection;
-        this.id = nanoid_1.default(helpers_1.HFXBUS_ID_SIZE);
+        this.id = options.id || nanoid_1.default(helpers_1.HFXBUS_ID_SIZE);
         this.consuming = false;
         this.options = {
             concurrency: 1,
@@ -32,18 +32,21 @@ class Consumer extends eventemitter3_1.default {
         };
         this.group = `${this.connection.getKeyPrefix()}:csr:${this.options.group}`;
     }
-    process({ stream, processor, fromId = '$', deadline = 30000, }) {
-        this.processors[stream] = {
+    process({ stream, processor, readFrom = '>', fromId = '$', deadline = 30000, setId = false, }) {
+        this.processors[`${this.connection.getKeyPrefix()}:str:${stream}`] = {
             processor,
             fromId,
+            readFrom,
             deadline,
+            stream,
+            setId,
         };
         return this;
     }
     async play() {
         await this.ensureStreamGroups();
         this.streams = Object.keys(this.processors);
-        this.streamsIdMap = this.streams.map(() => '>');
+        this.streamsIdMap = this.streams.map((stream) => this.processors[stream].readFrom);
         if (this.options.claimInterval) {
             this.claimer = setInterval(() => {
                 this.claimScheduled = true;
@@ -117,14 +120,18 @@ class Consumer extends eventemitter3_1.default {
             delete job.release;
             return job;
         };
-        const channel = `${this.connection.getKeyPrefix()}:chn:${stream}:${data.prd}`;
+        const streamName = this.processors[stream].stream;
+        const channel = `${this.connection.getKeyPrefix()}:chn:${streamName}:${data.prd}`;
         const client = this.connection.getClient('streams');
         const deadlineTimespan = this.processors[stream].deadline;
-        let deadline = setTimeout(() => {
-            if (job.reject) {
-                job.reject(helpers_1.setErrorKind(new Error(`The job was running for too long (${deadlineTimespan}ms)`), 'DEADLINE_TIMEOUT'));
-            }
-        }, deadlineTimespan);
+        let deadline = null;
+        if (deadlineTimespan && deadlineTimespan !== Infinity) {
+            deadline = setTimeout(() => {
+                if (job.reject) {
+                    job.reject(helpers_1.setErrorKind(new Error(`The job was running for too long (${deadlineTimespan}ms)`), 'DEADLINE_TIMEOUT'));
+                }
+            }, deadlineTimespan);
+        }
         const finish = () => {
             delete job.resolve;
             delete job.reject;
@@ -138,12 +145,12 @@ class Consumer extends eventemitter3_1.default {
         };
         job.resolve = async () => {
             await client.xack(stream, this.group, id);
-            await client.publish(channel, `{"str":"${stream}","job":"${data.job}"}`);
+            await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}"}`);
             finish();
         };
         job.reject = async (error) => {
             const serialized = serialize_error_1.default(error);
-            await client.publish(channel, `{"str":"${stream}","job":"${data.job}","err":${serialized}}`);
+            await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${serialized}}`);
             finish();
         };
         this.processors[stream].processor(job).then(() => {
@@ -207,12 +214,21 @@ class Consumer extends eventemitter3_1.default {
     async ensureStreamGroups() {
         const client = this.connection.getClient(this.id);
         for (const stream in this.processors) {
+            const processor = this.processors[stream];
             const { fromId, } = this.processors[stream];
             try {
                 await client.xgroup('create', stream, this.group, fromId, 'mkstream');
             }
             catch (error) {
                 if (error.message.includes('BUSYGROUP')) {
+                    if (processor.setId) {
+                        try {
+                            await client.xgroup('setid', stream, this.group, fromId);
+                        }
+                        catch (error) {
+                            throw error;
+                        }
+                    }
                     continue;
                 }
                 throw error;

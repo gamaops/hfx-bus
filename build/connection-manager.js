@@ -36,7 +36,7 @@ class ConnectionManager {
             startupNodes,
             cluster: {
                 enablePipelining: false,
-                ...cluster
+                ...cluster,
             },
         });
     }
@@ -44,7 +44,7 @@ class ConnectionManager {
         return new ConnectionManager({
             standalone: {
                 enablePipelining: true,
-                ...standalone
+                ...standalone,
             },
         });
     }
@@ -84,7 +84,7 @@ class ConnectionManager {
     getKeyPrefix() {
         return this.keyPrefix;
     }
-    async stop({ maxWait, force, }) {
+    async stop({ maxWait, force, } = {}) {
         const promises = [];
         for (const key in this.clients) {
             const client = this.clients[key];
@@ -121,6 +121,7 @@ class ConnectionManager {
         if (!force) {
             await Promise.all(promises);
         }
+        this.clients = {};
     }
 }
 exports.ConnectionManager = ConnectionManager;

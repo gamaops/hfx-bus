@@ -16,8 +16,8 @@ class Producer extends eventemitter3_1.default {
         client.on('pmessage', (pattern, channel, message) => {
             try {
                 message = JSON.parse(message);
-                this.emit(`${message.job}:${message.str}`, message.err);
-                this.emit(message.str, message.job, message.err);
+                this.emit(`${message.job}:${message.str}`, message.err, message.grp);
+                this.emit(message.str, message.err || null, message.job, message.grp);
             }
             catch (error) {
                 error.pubsub = { message, channel };
@@ -40,30 +40,7 @@ class Producer extends eventemitter3_1.default {
     job(id) {
         return new job_1.Job(this.connection.getClient('jobs'), id);
     }
-    async send({ stream, job, capped, }) {
-        job.finished = async (timeout) => {
-            return new Promise((resolve, reject) => {
-                const event = `${job.id}:${stream}`;
-                let timeoutId = null;
-                if (timeout) {
-                    timeoutId = setTimeout(() => {
-                        this.removeAllListeners(event);
-                        reject(helpers_1.setErrorKind(new Error(`Timeouted while waiting to be finished: ${timeout}ms`), 'FINISH_TIMEOUT'));
-                    }, timeout);
-                }
-                this.once(event, (error) => {
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                    }
-                    if (error) {
-                        reject(error);
-                    }
-                    else {
-                        resolve(job);
-                    }
-                });
-            });
-        };
+    async send({ stream, job, capped, waitFor, rejectOnError, }) {
         const client = this.connection.getClient('streams');
         let cappedOptions = [];
         if (capped) {
@@ -73,7 +50,56 @@ class Producer extends eventemitter3_1.default {
                 capped,
             ];
         }
-        await client.xadd(stream, ...cappedOptions, '*', 'prd', this.id, 'job', job.id);
+        const xaddArgs = [
+            `${this.connection.getKeyPrefix()}:str:${stream}`,
+            ...cappedOptions,
+            '*',
+            'prd',
+            this.id,
+            'job',
+            job.id,
+        ];
+        if (waitFor) {
+            job.finished = async (timeout) => {
+                return new Promise((resolve, reject) => {
+                    const event = `${job.id}:${stream}`;
+                    let timeoutId = null;
+                    if (timeout) {
+                        timeoutId = setTimeout(() => {
+                            this.removeAllListeners(event);
+                            reject(helpers_1.setErrorKind(new Error(`Timeouted while waiting to be finished: ${timeout}ms`), 'FINISH_TIMEOUT'));
+                        }, timeout);
+                    }
+                    const stopListening = () => {
+                        this.removeAllListeners(event);
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
+                        }
+                    };
+                    const completions = {};
+                    waitFor.forEach((group) => completions[group] = null);
+                    let completionsCount = 0;
+                    this.on(event, (error, group) => {
+                        if (group in completions) {
+                            completionsCount++;
+                        }
+                        completions[group] = error || new Date();
+                        if (error && rejectOnError) {
+                            stopListening();
+                            reject(completions);
+                        }
+                        else if (completionsCount === waitFor.length) {
+                            stopListening();
+                            resolve(completions);
+                        }
+                    });
+                    client.xadd(...xaddArgs).catch(reject);
+                });
+            };
+        }
+        if (!waitFor) {
+            await client.xadd(...xaddArgs);
+        }
         return job;
     }
 }
