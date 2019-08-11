@@ -1,3 +1,112 @@
+## 2019-08-11T09:14:07.190Z
+### 💚 - fixing the CI build (deployment)
+
+#### none
+
+- Add travis configuration
+
+-----------------------------
+
+## 2019-08-07T00:19:50.894Z
+### 📝 - writing docs (project)
+
+#### none
+
+- Finish the API reference for V2
+
+-----------------------------
+
+## 2019-08-06T11:17:24.962Z
+### 📝 - writing docs (project)
+
+#### none
+
+- Add API reference to Consumer and Producer
+
+-----------------------------
+
+## 2019-08-05T20:09:42.162Z
+### 🚥 - adding tests (project)
+
+#### none
+
+- Add helpers and Job tests
+
+-----------------------------
+
+## 2019-08-05T12:59:08.884Z
+### 📝 - writing docs (project)
+
+#### none
+
+- Fix README
+
+-----------------------------
+
+## 2019-08-05T11:36:02.849Z
+### 📝 - writing docs (project)
+
+#### none
+
+- Add API documentation for ConnectionManager
+
+-----------------------------
+
+## 2019-08-05T11:12:02.721Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix finished job cycle
+
+-----------------------------
+
+## 2019-08-05T10:43:26.516Z
+### 🚥 - adding tests (project)
+
+#### none
+
+- Add test files
+
+-----------------------------
+
+## 2019-08-05T10:30:05.608Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix starting order on README example
+
+-----------------------------
+
+## 2019-08-05T10:27:46.769Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix some bugs on first test
+- Rewrite readme
+
+-----------------------------
+
+## 2019-08-05T09:35:21.702Z
+### 🔥 - removing code or file(s) (project)
+
+#### none
+
+- Remove old HFXBus js
+
+-----------------------------
+
+## 2019-08-05T09:34:46.830Z
+### 🆕 - add code or file(s) (project)
+
+#### none
+
+- Refactor entire library into typescript
+
+-----------------------------
+
 ## 2019-05-14T21:27:07.416Z
 ### ⬆️ - upgrading dependencies (redis/connectors/clients)
 
