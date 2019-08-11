@@ -1,3 +1,12 @@
+## 2019-08-11T09:14:07.190Z
+### 💚 - fixing the CI build (deployment)
+
+#### none
+
+- Add travis configuration
+
+-----------------------------
+
 ## 2019-08-07T00:19:50.894Z
 ### 📝 - writing docs (project)
 
