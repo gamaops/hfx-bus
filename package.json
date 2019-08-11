@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/exocet-engineering/hfx-bus.git"
+    "url": "git+https://github.com/gamaops/hfx-bus.git"
   },
   "_moduleAliases": {
     "@src": "src",
@@ -66,9 +66,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/exocet-engineering/hfx-bus/issues"
+    "url": "https://github.com/gamaops/hfx-bus/issues"
   },
-  "homepage": "https://github.com/exocet-engineering/hfx-bus#readme",
+  "homepage": "https://github.com/gamaops/hfx-bus#readme",
   "devDependencies": {
     "@types/chai": "^4.1.7",
     "@types/glob": "^7.1.1",
