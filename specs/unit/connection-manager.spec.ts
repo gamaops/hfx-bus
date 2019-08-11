@@ -61,36 +61,5 @@ describe(
 			},
 		);
 
-		describe(
-			'ConnectionManager.cluster',
-			() => {
-
-				it(
-					'Should create a new instance',
-					() => {
-
-						let job;
-						job = new Job.Job(client);
-
-						let callArgs: any;
-
-						sinon.assert.calledOnce(nanoid);
-						callArgs = nanoid.getCall(0).args;
-						expect(callArgs[0]).to.be.equal(16);
-						
-						expect(job.id).to.be.equal(generatedId);
-
-						const localId = Symbol();
-
-						job = new Job.Job(client, localId);
-
-						expect(job.id).to.be.equal(localId);
-
-					},
-				);
-
-			},
-		);
-
 	},
 );

@@ -80,8 +80,9 @@ export class Job {
 				...this.stacks.del,
 			]);
 			for (let i = 0; i < this.stacks.get.length; i++) {
-				if (results[i][0]) // TODO: Is right to ignore error?
+				if (results[i][0]) { // TODO: Is right to ignore error?
 					continue;
+				}
 				const result = results[i].pop();
 				const [command, prefixedKey] = this.stacks.get[i];
 				const key = this.stacks.getMap[prefixedKey];
@@ -105,7 +106,7 @@ export class Job {
 		return values;
 	}
 
-	private async exec (commands: Array<Array<any>>): Promise<Array<any>> {
+	private async exec(commands: Array<Array<any>>): Promise<Array<any>> {
 		if (this.client.enablePipelining) {
 			return await this.client.pipeline(commands).exec();
 		}

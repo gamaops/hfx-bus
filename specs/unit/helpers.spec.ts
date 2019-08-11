@@ -33,7 +33,7 @@ describe(
 				it(
 					'Should se a value on object',
 					() => {
-						
+
 						const object: any = {};
 						helpers.withValue(object, 'property', 'value');
 						expect(object.property).to.be.equal('value');
@@ -51,7 +51,7 @@ describe(
 				it(
 					'Should set error kind',
 					() => {
-						
+
 						const error: any = new Error();
 						helpers.setErrorKind(error, 'MY_ERROR');
 						expect(error.code).to.be.equal('MY_ERROR');

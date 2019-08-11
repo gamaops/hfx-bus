@@ -63,7 +63,7 @@ describe(
 						sinon.assert.calledOnce(nanoid);
 						callArgs = nanoid.getCall(0).args;
 						expect(callArgs[0]).to.be.equal(16);
-						
+
 						expect(job.id).to.be.equal(generatedId);
 
 						const localId = Symbol();
@@ -172,7 +172,7 @@ describe(
 
 						sinon.assert.notCalled(client.pipeline);
 
-					}
+					},
 				);
 
 				it(
@@ -271,7 +271,7 @@ describe(
 
 						sinon.assert.notCalled(client.pipeline);
 
-					}
+					},
 				);
 
 				it(

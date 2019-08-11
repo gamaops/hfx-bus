@@ -5,6 +5,10 @@ import { ConnectionManager } from './connection-manager';
 import { HFXBUS_ID_SIZE, setErrorKind } from './helpers';
 import { ISentJob, Job } from './job';
 
+export interface IJobCompletion {
+	[key: string]: null | Date | any;
+}
+
 export class Producer extends EventEmitter {
 	public readonly id: string;
 
@@ -19,8 +23,8 @@ export class Producer extends EventEmitter {
 		client.on('pmessage', (pattern, channel, message) => {
 			try {
 				message = JSON.parse(message);
-				this.emit(`${message.job}:${message.str}`, message.err);
-				this.emit(message.str, message.job, message.err || null);
+				this.emit(`${message.job}:${message.str}`, message.err, message.grp);
+				this.emit(message.str, message.err || null, message.job, message.grp);
 			} catch (error) {
 				error.pubsub = {message, channel};
 				this.emit('error', setErrorKind(error, 'MESSAGE_PARSING'));
@@ -52,12 +56,14 @@ export class Producer extends EventEmitter {
 		stream,
 		job,
 		capped,
-		waitFor
+		waitFor,
+		rejectOnError,
 	}: {
 		stream: string,
 		job: Job,
 		capped?: number,
-		waitFor?: boolean
+		waitFor?: Array<string> | null,
+		rejectOnError?: boolean,
 	}): Promise<ISentJob> {
 
 		const client = this.connection.getClient('streams') as Redis & { xadd: any };
@@ -80,10 +86,10 @@ export class Producer extends EventEmitter {
 			job.id,
 		];
 
-		if (waitFor)
-			job.finished = async (timeout?: number): Promise<Job> => {
+		if (waitFor) {
+			job.finished = async (timeout?: number): Promise<IJobCompletion> => {
 				return new Promise((resolve, reject) => {
-					const event = `${job.id}:${stream}`;
+					const event =  `${job.id}:${stream}`;
 					let timeoutId: any = null;
 					if (timeout) {
 						timeoutId = setTimeout(() => {
@@ -94,24 +100,36 @@ export class Producer extends EventEmitter {
 							));
 						}, timeout);
 					}
-					this.once(event, (error) => {
+					const stopListening = () => {
+						this.removeAllListeners(event);
 						if (timeoutId) {
 							clearTimeout(timeoutId);
 						}
-						if (error) {
-							reject(error);
-						} else {
-							resolve(job);
+					};
+					const completions: IJobCompletion = {};
+					waitFor.forEach((group) => completions[group] = null);
+					let completionsCount: number = 0;
+					this.on(event, (error, group) => {
+						if (group in completions) {
+							completionsCount++;
+						}
+						completions[group] = error || new Date();
+						if (error && rejectOnError) {
+							stopListening();
+							reject(completions);
+						} else if (completionsCount === waitFor.length) {
+							stopListening();
+							resolve(completions);
 						}
 					});
-					if (waitFor) {
-						client.xadd(...xaddArgs).catch(reject);
-					}
+					client.xadd(...xaddArgs).catch(reject);
 				});
 			};
+		}
 
-		if (!waitFor)
+		if (!waitFor) {
 			await client.xadd(...xaddArgs);
+		}
 
 		return job;
 

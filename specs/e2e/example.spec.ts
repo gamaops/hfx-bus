@@ -1,8 +1,8 @@
-import { ConnectionManager, Producer, Consumer } from '../../src';
+import { ConnectionManager, Consumer, Producer } from '../../src';
 
 const connection = ConnectionManager.standalone({
 	port: 6379,
-	host: '127.0.0.1'
+	host: '127.0.0.1',
 });
 
 const producer = new Producer(connection);
@@ -15,7 +15,7 @@ consumer.process({
 		console.log(`Received job: ${job.id}`);
 
 		const {
-			inbound
+			inbound,
 		} = await job.get('inbound', false).del('inbound').pull();
 
 		console.log(`Received inbound: ${inbound}`);
@@ -24,7 +24,7 @@ consumer.process({
 
 		console.log('Job consumed');
 
-	}
+	},
 });
 
 const execute = async () => {
@@ -41,8 +41,10 @@ const execute = async () => {
 
 	await producer.send({
 		stream: 'concat',
-		waitFor: true,
-		job
+		waitFor: [
+			'worldConcat'
+		],
+		job,
 	});
 
 	console.log(`Sent job: ${job.id}`);
@@ -52,12 +54,12 @@ const execute = async () => {
 	console.log(`Finished job: ${job.id}`);
 
 	const {
-		outbound
+		outbound,
 	} = await job.get('outbound', false).del('outbound').pull();
 
 	console.log(`Outbound is: ${outbound}`);
 
-}
+};
 
 consumer.play().then(() => {
 	console.log(`Consumer is waiting for jobs (consumer id is ${consumer.id})`);

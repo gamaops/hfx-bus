@@ -30,7 +30,7 @@ export class ConnectionManager {
 			startupNodes,
 			cluster: {
 				enablePipelining: false,
-				...cluster
+				...cluster,
 			},
 		});
 	}
@@ -39,7 +39,7 @@ export class ConnectionManager {
 		return new ConnectionManager({
 			standalone: {
 				enablePipelining: true,
-				...standalone
+				...standalone,
 			},
 		});
 	}

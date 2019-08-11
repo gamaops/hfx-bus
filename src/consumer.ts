@@ -41,7 +41,7 @@ export class Consumer extends EventEmitter {
 			fromId: string,
 			deadline: number,
 			stream: string,
-			setId: boolean
+			setId: boolean,
 		},
 	} = {};
 
@@ -67,14 +67,14 @@ export class Consumer extends EventEmitter {
 		readFrom = '>',
 		fromId = '$',
 		deadline = 30000,
-		setId = false
+		setId = false,
 	}: {
 		stream: string,
 		processor: IStreamProcessor,
 		readFrom?: string,
 		fromId?: string,
 		deadline?: number,
-		setId?: boolean
+		setId?: boolean,
 	}): Consumer {
 		this.processors[`${this.connection.getKeyPrefix()}:str:${stream}`] = {
 			processor,
@@ -82,7 +82,7 @@ export class Consumer extends EventEmitter {
 			readFrom,
 			deadline,
 			stream,
-			setId
+			setId,
 		};
 		return this;
 	}
@@ -197,15 +197,14 @@ export class Consumer extends EventEmitter {
 			return job;
 		};
 
-
 		const streamName = this.processors[stream].stream;
 		const channel = `${this.connection.getKeyPrefix()}:chn:${streamName}:${data.prd}`;
 		const client = this.connection.getClient('streams') as Redis;
 		const deadlineTimespan = this.processors[stream].deadline;
 
 		let deadline: any = null;
-		
-		if (deadlineTimespan && deadlineTimespan !== Infinity)
+
+		if (deadlineTimespan && deadlineTimespan !== Infinity) {
 			deadline = setTimeout(() => {
 				if (job.reject) {
 					job.reject(setErrorKind(
@@ -214,6 +213,7 @@ export class Consumer extends EventEmitter {
 					));
 				}
 			}, deadlineTimespan);
+		}
 
 		const finish = () => {
 			delete job.resolve;
@@ -233,13 +233,16 @@ export class Consumer extends EventEmitter {
 				this.group,
 				id,
 			);
-			await client.publish(channel, `{"str":"${streamName}","job":"${data.job}"}`);
+			await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}"}`);
 			finish();
 		};
 
 		job.reject = async (error) => {
 			const serialized = serializeError(error);
-			await client.publish(channel, `{"str":"${streamName}","job":"${data.job}","err":${serialized}}`);
+			await client.publish(
+				channel,
+				`{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${serialized}}`,
+			);
 			finish();
 		};
 
@@ -350,7 +353,7 @@ export class Consumer extends EventEmitter {
 								'setid',
 								stream,
 								this.group,
-								fromId
+								fromId,
 							);
 						} catch (error) {
 							throw error;

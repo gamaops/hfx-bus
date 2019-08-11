@@ -191,7 +191,8 @@ Sends the job to the specified stream.
 * **options.stream** - Required string with the stream's name.
 * **options.job** - Required, the job instance.
 * **options.capped** - Maximum number of messages to keep in the stream, see the Redis XTRIM command to understand this options. By default, the stream won't be capped.
-* **options.waitFor** - Optional boolean indicating if the **decorated method finished** must be added to job, if this parameter is false (the defaul valur) the behavior of send will be fire and forget, otherwise you can await for the job's completion. Remember to call **Producer.listen()** before sending jobs if you want to await for jobs to be finished.
+* **options.waitFor** - Optional array of consumer groups indicating if the **decorated method finished** must be added to job, if this parameter is undefined or false (the defaul value) the behavior of send will be fire and forget, otherwise you can await for the job's completion for each group specified. Remember to call **Producer.listen()** before sending jobs if you want to await for jobs to be finished.
+* **options.rejectOnError** - Optional boolean, if you specify the **waitFor** property the default behavior is to return completions even if one consumer group had an error. If you specify this value as `true` the first consumer group to fail will cause the **decorated method finished** to reject with the completions received at time.
 
 ----------------------
 
@@ -480,13 +481,16 @@ decoratedMethod();
 
 ### decorated method finished
 
-* After the job is sent to stream using the **Producer.send** and the parameter **waitFor** was set to `true`
+* After the job is sent to stream using the **Producer.send** and the parameter **waitFor** was set.
 
 ```typescript
-await job.finished(timeout);
+const completions = await job.finished(timeout);
 ```
 
-Waits for the job's completion.
+Waits for the job's completion. The completions is an object with the keys as consumer groups names and values as:
+
+* Date object with the completion time if the consumer group succeeded
+* Error data if the consumer group rejected the job
 
 **Arguments**
 

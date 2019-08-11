@@ -22,7 +22,7 @@ npm install --save hfxbus
 
 ## Upgrading
 
-This project was rewritten in Typescript on v2, if you're running v1 and need reference please visit the branch v1.
+This project was rewritten in Typescript on v2, if you're running v1 and need reference please visit the branch v1. **The v2+ still defined as RC and will only achieve GA when we finish the tests for HFXBus v2.**
 
 ----------------------
 
