@@ -1,28 +1,38 @@
 language: node_js
 node_js:
-  - "8"
-  - "10"
-  - "12"
-
+- '10'
+- '12'
+if: "(branch != master AND type = pull_request) OR (branch = master AND commit_message !~ /^Release v/) OR tag =~ ^v"
+stages:
+- test
+- Build and Tag
+- deploy
 script:
-  - npm run lint
-  - npm run test:unit
-
-after_success:
-  - npm run build
-
-deploy:
-  provider: npm
-  skip_cleanup: true
-  email: $NPM_EMAIL
-  api_key: $NPM_TOKEN
-  on:
-    tags: true
-
+- npm run lint
+- npm run test:unit
+env:
+- GH_REPOSITORY=gamaops/hfx-bus
+jobs:
+  include:
+  - stage: Build and Tag
+    node_js: '12'
+    name: Build and Tag
+    script:
+    - ".travis/semver.sh"
+    if: tag !~ ^v AND branch = master AND type = push
+  - stage: deploy
+    deploy:
+      provider: npm
+      skip_cleanup: true
+      email: "$NPM_EMAIL"
+      api_key: "$NPM_TOKEN"
+      on:
+        tags: true
+    if: tag =~ ^v AND branch != master AND type = push
 notifications:
-  email:
-    recipients:
-      - victorfranlopes@outlook.com
-      - coder.marcos@gmail.com
-    on_success: change
+  slack:
+    rooms:
+    - secure: "W6DxjYEs1DcNkp2YR4IlaStQUFVPv8N6QXmGJzmbzx2C/avWwYG7BkOAxw+wreov2WptfYN8VbmOEG8btbaR0UbvYQKMXDmy8m1k+6hHd+JRF52HasbP65oK/NMiT1MwRU79XDVopnwCrzavB3CPk45dCnJPWprf1KjicC6Is1GBqkUvoZnhLCFRmh0uJJH/q6OTMxgYIcUsRHGebInv0R+33UfR1H30eD8yqhbSHGgMSAi29DhaVVTLnAot8Ovu9ExOMhtGDg9pScIDdPoJggUmH53R3Ktclg8TX5c+g8UoUUQnAbmxqDtcDyNGPnCWf68bo9XYERSp9If7yN243JHjeAr4eLibcjM78FRfQYhTm84/JrrXmNfBNSChFAgikbghEv4ImtWp8fSZahgjA7dtz4iIqO6VcQ37XENetLLTmn44CmWfECaDa8ZE3qnPaeImCL5VBBN37PRUWLq4s0bppM6lm8PGBM2RtVeq0H14vqh+p94gRW7zge21w5VamKibM//tOjdEDjtDRus+KlCAw+TXPyY/5wvII/gMgzfW/uSQJvwPtcERmiJqYxnK36GnQ0BDrhA51QYP6Ng3BezF8KCrQBbauvdBuOxNjxMsrz9Doy7DJ1wb480WV8x45z5kPxsxF0/nPICvcxg/UvrT1lxftdZ+mr7by57JOpM="
+    on_success: always
     on_failure: always
+    on_pull_requests: true

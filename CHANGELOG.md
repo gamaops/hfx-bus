@@ -1,3 +1,12 @@
+## 2019-08-11T21:47:52.591Z
+### 👷 - adding CI build (deployment)
+
+#### none
+
+- Add TravisCI integration
+
+-----------------------------
+
 ## 2019-08-11T09:14:07.190Z
 ### 💚 - fixing the CI build (deployment)
 
