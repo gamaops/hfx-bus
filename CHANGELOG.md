@@ -1,3 +1,12 @@
+## 2019-08-11T22:01:43.420Z
+### 🐛 - fixing a bug (integration)
+
+#### none
+
+- Fix travis slack secret
+
+-----------------------------
+
 ## 2019-08-11T21:47:52.591Z
 ### 👷 - adding CI build (deployment)
 
