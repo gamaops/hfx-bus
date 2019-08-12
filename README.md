@@ -130,4 +130,11 @@ Remember to start **consumer.js** before **producer.js** as by default consumer 
 
 ## API Documentation
 
-Your can learn more about HFXBus API [clicking here](https://github.com/exocet-engineering/hfx-bus/blob/master/API.md).
+Your can learn more about HFXBus API [clicking here](https://github.com/gamaops/hfx-bus/blob/master/API.md).
+
+----------------------
+
+## Related Projects
+
+* [HFXWorker](https://github.com/gamaops/hfx-worker) - A worker pool using NodeJS worker threads.
+* [HFXEventStash](https://github.com/gamaops/hfx-eventstash) - A high performance event store to persist commands (CQRS).

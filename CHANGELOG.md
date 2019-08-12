@@ -1,3 +1,12 @@
+## 2019-08-12T23:00:45.017Z
+### 🐛 - fixing a bug (repository)
+
+#### none
+
+- Fix API docs link
+
+-----------------------------
+
 ## 2019-08-11T21:47:52.591Z
 ### 👷 - adding CI build (deployment)
 
