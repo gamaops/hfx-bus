@@ -1,3 +1,12 @@
+## 2019-08-17T20:15:33.654Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix error handling (serialize error needs JSON.stringify)
+
+-----------------------------
+
 ## 2019-08-12T23:00:45.017Z
 ### 🐛 - fixing a bug (repository)
 
