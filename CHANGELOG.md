@@ -1,3 +1,12 @@
+## 2019-08-17T20:45:44.775Z
+### 🐛 - fixing a bug (project)
+
+#### none
+
+- Fix consume loop event
+
+-----------------------------
+
 ## 2019-08-17T20:15:33.654Z
 ### 🐛 - fixing a bug (project)
 
