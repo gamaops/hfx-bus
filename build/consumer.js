@@ -150,7 +150,7 @@ class Consumer extends eventemitter3_1.default {
         };
         job.reject = async (error) => {
             const serialized = serialize_error_1.default(error);
-            await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${serialized}}`);
+            await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${JSON.stringify(serialized)}}`);
             finish();
         };
         this.processors[stream].processor(job).then(() => {
