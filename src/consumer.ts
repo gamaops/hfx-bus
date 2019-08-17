@@ -241,7 +241,7 @@ export class Consumer extends EventEmitter {
 			const serialized = serializeError(error);
 			await client.publish(
 				channel,
-				`{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${serialized}}`,
+				`{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${JSON.stringify(serialized)}}`,
 			);
 			finish();
 		};
