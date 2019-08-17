@@ -1,5 +1,5 @@
-import { ConnectionManager, Consumer, Producer } from '../../src';
 import { expect } from 'chai';
+import { ConnectionManager, Consumer, Producer } from '../../src';
 
 const connection = ConnectionManager.standalone({
 	port: 6379,
@@ -38,7 +38,7 @@ const execute = async () => {
 		stream: 'error',
 		rejectOnError: true,
 		waitFor: [
-			'throw'
+			'throw',
 		],
 		job,
 	});

@@ -102,7 +102,7 @@ export class Consumer extends EventEmitter {
 
 		this.removeAllListeners(CONSUME_EVENT);
 		this.on(CONSUME_EVENT, async () => {
-			if (this.consuming) {
+			if (this.consuming || this.processingCount >= this.options.concurrency!) {
 				return;
 			}
 			const client = this.connection.getClient(this.id) as Redis & {
@@ -120,13 +120,16 @@ export class Consumer extends EventEmitter {
 						await this.retry(client);
 						this.claimScheduled = false;
 					}
-					await this.consume(client);
+					if (this.processingCount < this.options.concurrency!) {
+						await this.consume(client);
+					}
 				}
 			} catch (error) {
 				this.emit('error', setErrorKind(error, 'CONSUME_ERROR'));
 			}
 			client.emit('release');
 			this.consuming = false;
+			this.emit(CONSUME_EVENT);
 		}).emit(CONSUME_EVENT);
 
 	}
@@ -266,9 +269,6 @@ export class Consumer extends EventEmitter {
 	}
 
 	private async retry(client: Redis & { xretry: any }) {
-		if (this.processingCount >= this.options.concurrency!) {
-			return;
-		}
 		const jobs = await client.xretry(
 			this.group,
 			this.id,
@@ -291,16 +291,10 @@ export class Consumer extends EventEmitter {
 				});
 				this.emit('claimed', job);
 			}
-			if (this.processingCount >= this.options.concurrency!) {
-				return;
-			}
 		}
 	}
 
 	private async consume(client: Redis) {
-		if (this.processingCount >= this.options.concurrency!) {
-			return;
-		}
 		const jobs = await client.xreadgroup(
 			'group',
 			this.group,
@@ -323,11 +317,7 @@ export class Consumer extends EventEmitter {
 					});
 				}
 			}
-			if (this.processingCount >= this.options.concurrency!) {
-				return;
-			}
 		}
-		this.emit(CONSUME_EVENT);
 	}
 
 	private async ensureStreamGroups() {

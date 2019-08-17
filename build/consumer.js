@@ -54,7 +54,7 @@ class Consumer extends eventemitter3_1.default {
         }
         this.removeAllListeners(CONSUME_EVENT);
         this.on(CONSUME_EVENT, async () => {
-            if (this.consuming) {
+            if (this.consuming || this.processingCount >= this.options.concurrency) {
                 return;
             }
             const client = this.connection.getClient(this.id);
@@ -70,7 +70,9 @@ class Consumer extends eventemitter3_1.default {
                         await this.retry(client);
                         this.claimScheduled = false;
                     }
-                    await this.consume(client);
+                    if (this.processingCount < this.options.concurrency) {
+                        await this.consume(client);
+                    }
                 }
             }
             catch (error) {
@@ -78,6 +80,7 @@ class Consumer extends eventemitter3_1.default {
             }
             client.emit('release');
             this.consuming = false;
+            this.emit(CONSUME_EVENT);
         }).emit(CONSUME_EVENT);
     }
     async pause(timeout) {
@@ -171,9 +174,6 @@ class Consumer extends eventemitter3_1.default {
         });
     }
     async retry(client) {
-        if (this.processingCount >= this.options.concurrency) {
-            return;
-        }
         const jobs = await client.xretry(this.group, this.id, this.options.retryLimit, this.options.concurrency - this.processingCount, this.options.claimPageSize, this.options.claimDeadline);
         if (jobs && jobs.length > 0) {
             for (const job of jobs) {
@@ -185,15 +185,9 @@ class Consumer extends eventemitter3_1.default {
                 });
                 this.emit('claimed', job);
             }
-            if (this.processingCount >= this.options.concurrency) {
-                return;
-            }
         }
     }
     async consume(client) {
-        if (this.processingCount >= this.options.concurrency) {
-            return;
-        }
         const jobs = await client.xreadgroup('group', this.group, this.id, 'count', this.options.concurrency - this.processingCount, 'block', this.options.blockTimeout, 'streams', ...this.streams, ...this.streamsIdMap);
         if (jobs) {
             for (const stream in jobs) {
@@ -205,11 +199,7 @@ class Consumer extends eventemitter3_1.default {
                     });
                 }
             }
-            if (this.processingCount >= this.options.concurrency) {
-                return;
-            }
         }
-        this.emit(CONSUME_EVENT);
     }
     async ensureStreamGroups() {
         const client = this.connection.getClient(this.id);
