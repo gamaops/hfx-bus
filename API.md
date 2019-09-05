@@ -5,6 +5,9 @@
 * [ConnectionManager](#ConnectionManager)
 	* [static method standalone](#ConnectionManager+standalone) creates a ConnectionManager for standalone Redis server
 	* [static method cluster](#ConnectionManager+cluster) creates a ConnectionManager for Redis Cluster
+	* [static method nodes](#ConnectionManager+nodes) creates a ConnectionManager for Redis with client side partitioning enabled
+	* [method getClientByRoute](#ConnectionManager+getClientByRoute) returns a Redis client by specified route
+	* [method getClients](#ConnectionManager+getClients) returns all Redis clients
 	* [method getClient](#ConnectionManager+getClient) returns a Redis client
 	* [method getKeyPrefix](#ConnectionManager+getKeyPrefix) returns the defined key prefix
 	* [method stop](#ConnectionManager+stop) stops all Redis clients
@@ -67,6 +70,25 @@ This method creates a new instance of ConnectionManager for standalone Redis ser
 
 ----------------------
 
+<a name="ConnectionManager+nodes"></a>
+
+### static method nodes
+
+```typescript
+const connnection = ConnectionManager.nodes(options);
+```
+
+This method creates a new instance of ConnectionManager for Redis with client side partitioning enabled.
+
+**Arguments**
+
+* **options.nodes** - Must be an array of objects that specify each node to be partitioned, each object accepts all options accepted by ioredis and the following:
+   * **sequence** - A number to specify the sequence of that node in the nodes array, this is useful to keep the partitioning consistent regardless of the passed nodes array.
+   * **staticRoutes** - An array with strings (as the routing key) or numbers (as the pre calculated crc16 of the routing key) to force a route to be placed on that node. We recommend to put your routing keys for consumers here to avoid streams be splitted by multiple nodes. **Consumers can't read two streams from two nodes.**
+* **options.enablePipelining** - Enables real Redis pipelining, the default value is `true`.
+
+----------------------
+
 <a name="ConnectionManager+cluster"></a>
 
 ### static method cluster
@@ -85,6 +107,39 @@ This method creates a new instance of ConnectionManager for Redis Cluster.
 
 ----------------------
 
+<a name="ConnectionManager+getClientByRoute"></a>
+
+### method getClientByRoute
+
+```typescript
+const client = connection.getClientByRoute(name, route);
+```
+
+This method returns a new instance of Redis client, creating it if needed. This method is useful only when you enabled the client side partitioning (creating a **ConnectionManager** using the `.nodes()` method)
+
+**Arguments**
+
+* **name** - A string with the client's name.
+* **route** - A routing key that will be used to define which client will be returned.
+
+----------------------
+
+<a name="ConnectionManager+getClients"></a>
+
+### method getClients
+
+```typescript
+const clients = connection.getClients(name);
+```
+
+This method returns all instances of Redis clients for that name (standalone, cluster or client side partitioning enabled), creating them if needed.
+
+**Arguments**
+
+* **name** - A string with the client's name.
+
+----------------------
+
 <a name="ConnectionManager+getClient"></a>
 
 ### method getClient
@@ -93,7 +148,7 @@ This method creates a new instance of ConnectionManager for Redis Cluster.
 const client = connection.getClient(name);
 ```
 
-This method returns a new instance of Redis clients, creating it if needed.
+This method returns a new instance of Redis client, creating it if needed.
 
 **Arguments**
 
@@ -190,6 +245,7 @@ Sends the job to the specified stream.
 
 * **options.stream** - Required string with the stream's name.
 * **options.job** - Required, the job instance.
+* **options.route** - If you're using client side partitioning, specify this value to route the message to the correct client.
 * **options.capped** - Maximum number of messages to keep in the stream, see the Redis XTRIM command to understand this options. By default, the stream won't be capped.
 * **options.waitFor** - Optional array of consumer groups indicating if the **decorated method finished** must be added to job, if this parameter is undefined or false (the defaul value) the behavior of send will be fire and forget, otherwise you can await for the job's completion for each group specified. Remember to call **Producer.listen()** before sending jobs if you want to await for jobs to be finished.
 * **options.rejectOnError** - Optional boolean, if you specify the **waitFor** property the default behavior is to return completions even if one consumer group had an error. If you specify this value as `true` the first consumer group to fail will cause the **decorated method finished** to reject with the completions received at time.
@@ -244,6 +300,7 @@ Consumer is the class that process jobs from streams. Consumers can also claim s
 
 * **connection** - An instance of ConnectionManager.
 * **options.group** - Required string with the consumer group name.
+* **options.route** - If you're using client side partitioning you must specify this value otherwise the value of **options.group** will be used as routing key.
 * **options.id** - An optional string with the consumer's ID, if not specified an ID will be generated using the nanoid package.
 * **options.concurrency** - Maximum number of parallel jobs being processed by this consumer, the default value is `1`.
 * **options.blockTimeout** - Number of milliseconds to block the XREADGROUP command, the default value is `5000`.

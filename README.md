@@ -10,6 +10,7 @@
 * Claiming logic to retry and collect stalled out messages
 * Architecture and payload agnostic
 * Limit the number of parallel processing done by your microservices
+* Supports client side partitioning to achieve Redis HA
 * Unit and E2E tested
 
 It's simple and effective to achieve high performance event-sourcing environment and microservice communication.
@@ -36,9 +37,24 @@ And finally, with [XTRIM](https://redis.io/commands/xtrim) you can keep your Red
 
 ----------------------
 
+## Client side partitioning
+
+HFXBus provides client side partitioning through the method **ConnectionManager.nodes()**, but you need to be aware of the following points:
+
+* This partitioning is efficient for partitioning job's payload
+* Consumers group can't read from streams spread through multiple nodes, so you'll need to make them as static routing using the **route** parameter of consumers and the **staticRoutes** of connection parameters.
+* Always use the **sequence** parameter to specify the sequence of nodes when partitioning the data.
+* Producer's listen to Pub/Sub from a single connection only if the stream name is not a pattern, otherwise it'll listen to all nodes.
+
+This feature was designed to work with the following architecture:
+
+![client side partitioning](https://raw.githubusercontent.com/gamaops/hfx-bus/master/doc/images/client-side-partitioning.png)
+
+----------------------
+
 ## Quick Start
 
-First, setup a Redis running at `127.0.0.1:6379` (you can use [docker](https://hub.docker.com/_/redis)). And then create a **consumer.js** file with the following content:
+First, setup a Redis running at `127.0.0.1:6379` (you can use [docker](https://hub.docker.com/_/redis)). And then create a **consumer.ts** file with the following content:
 
 ```typescript
 import { ConnectionManager, Consumer } from 'hfxbus';
@@ -75,7 +91,7 @@ consumer.play().then(() => {
 
 ```
 
-And another file as **producer.js**:
+And another file as **producer.ts**:
 
 ```javascript
 import { ConnectionManager, Producer } from 'hfxbus';
@@ -124,7 +140,7 @@ const execute = async () => {
 execute().catch((error) => console.error(error));
 ```
 
-Remember to start **consumer.js** before **producer.js** as by default consumer will receive only new jobs, you can change this behavior, take a look at the API Documentation.
+Remember to start **consumer.ts** before **producer.ts** as by default consumer will receive only new jobs, you can change this behavior, take a look at the API Documentation.
 
 ----------------------
 

@@ -1,7 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { Redis } from 'ioredis';
 import nanoid from 'nanoid';
-import { ConnectionManager } from './connection-manager';
+import { ConnectionManager, RedisClient } from './connection-manager';
 import { HFXBUS_ID_SIZE, setErrorKind } from './helpers';
 import { ISentJob, Job } from './job';
 
@@ -19,54 +19,56 @@ export class Producer extends EventEmitter {
 		this.connection = connection;
 		this.id = nanoid(HFXBUS_ID_SIZE);
 
-		const client = this.connection.getClient('channels') as Redis;
-		client.on('pmessage', (pattern, channel, message) => {
-			try {
-				message = JSON.parse(message);
-				this.emit(`${message.job}:${message.str}`, message.err, message.grp);
-				this.emit(message.str, message.err || null, message.job, message.grp);
-			} catch (error) {
-				error.pubsub = {message, channel};
-				this.emit('error', setErrorKind(error, 'MESSAGE_PARSING'));
-			}
-		}).once('stopped', () => {
-			client.punsubscribe().finally(() => {
-				client.emit('release');
-			});
-		}).emit('use');
 	}
 
 	public async listen(...streams: Array<string>) {
-		const client = this.connection.getClient('channels') as Redis;
-		const patterns: Array<string> = streams.map((stream) => `${this.connection.getKeyPrefix()}:chn:${stream}:*`);
 		if (streams.length === 0) {
-			patterns.push(`${this.connection.getKeyPrefix()}:chn:*:${this.id}`);
+			const clients = this.connection.getClients('channels');
+			await Promise.all(clients.map((client) => {
+				this.bindClient(client);
+				return (client as Redis).psubscribe(`${this.connection.getKeyPrefix()}:chn:*:${this.id}`);
+			}));
+			return;
 		}
-		await client.psubscribe(...patterns);
+		await Promise.all(streams.map((stream) => {
+			if (stream.includes('*')) {
+				const clients = this.connection.getClients('channels');
+				return Promise.all(clients.map((nodeClient) => {
+					this.bindClient(nodeClient);
+					return (nodeClient as Redis).psubscribe(`${this.connection.getKeyPrefix()}:chn:${stream}:*`);
+				}));
+			}
+			const client = this.connection.getClientByRoute('channels', stream);
+			this.bindClient(client);
+			return (client as Redis).psubscribe(`${this.connection.getKeyPrefix()}:chn:${stream}:*`);
+		}));
 	}
 
 	public job(id?: string): Job {
+		id = id || nanoid(HFXBUS_ID_SIZE);
 		return new Job(
-			this.connection.getClient('jobs') as Redis,
+			this.connection.getClientByRoute('jobs', id) as Redis,
 			id,
 		);
 	}
 
 	public async send({
 		stream,
+		route,
 		job,
 		capped,
 		waitFor,
 		rejectOnError,
 	}: {
 		stream: string,
+		route?: string,
 		job: Job,
 		capped?: number,
 		waitFor?: Array<string> | null,
 		rejectOnError?: boolean,
 	}): Promise<ISentJob> {
 
-		const client = this.connection.getClient('streams') as Redis & { xadd: any };
+		const client = this.connection.getClientByRoute('streams', route || stream) as Redis & { xadd: any };
 		let cappedOptions: Array<any> = [];
 		if (capped) {
 			cappedOptions = [
@@ -133,6 +135,33 @@ export class Producer extends EventEmitter {
 
 		return job;
 
+	}
+
+	private bindClient(client: RedisClient) {
+		if (!client.boundProducers) {
+			client.boundProducers = new Set();
+		}
+
+		if (client.boundProducers.has(this.id)) {
+			return;
+		}
+
+		client.boundProducers.add(this.id);
+
+		client.on('pmessage', (pattern, channel, message) => {
+			try {
+				message = JSON.parse(message);
+				this.emit(`${message.job}:${message.str}`, message.err, message.grp);
+				this.emit(message.str, message.err || null, message.job, message.grp);
+			} catch (error) {
+				error.pubsub = {message, channel};
+				this.emit('error', setErrorKind(error, 'MESSAGE_PARSING'));
+			}
+		}).once('stopped', () => {
+			(client as Redis).punsubscribe().finally(() => {
+				client.emit('release');
+			});
+		}).emit('use');
 	}
 
 }
