@@ -1,3 +1,12 @@
+## 2019-09-05T20:17:54.101Z
+### 📝 - writing docs (project)
+
+#### #16
+
+- Add docs for client side partitioning
+
+-----------------------------
+
 ## 2019-09-05T11:50:46.468Z
 ### 🆕 - add code or file(s) (project)
 
