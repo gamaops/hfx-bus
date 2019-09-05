@@ -12,6 +12,8 @@ const XRETRY_LUA = fs.readFileSync(
 export interface IRedisClientOptions {
 	keyPrefix?: string;
 	enablePipelining?: boolean;
+	sequence?: number;
+	staticRoutes?: Array<string | number>;
 }
 
 export interface IRedisClient extends IRedisClientOptions {
@@ -51,6 +53,12 @@ export class ConnectionManager {
 	}
 
 	public static nodes(nodes: IRedisNodes): ConnectionManager {
+		nodes.nodes = nodes.nodes.map((node, index) => {
+			if (!('sequence' in node)) {
+				node.sequence = index;
+			}
+			return node;
+		}).sort((a, b) => a.sequence! - b.sequence!);
 		return new ConnectionManager({
 			nodes: {
 				enablePipelining: true,
@@ -65,6 +73,7 @@ export class ConnectionManager {
 	private startupNodes: Array<ClusterNode> | undefined;
 	private clients: { [key: string]: RedisClient } = {};
 	private keyPrefix: string = 'hfxbus';
+	private staticRoutes: { [key: string]: number } = {};
 
 	constructor({
 		standalone,
@@ -87,6 +96,16 @@ export class ConnectionManager {
 		} else if (this.nodes) {
 			this.keyPrefix = this.nodes!.keyPrefix || 'hfxbus';
 			Reflect.deleteProperty(this.nodes!, 'keyPrefix');
+			this.nodes.nodes.forEach((node, index) => {
+				if (node.staticRoutes) {
+					for (let staticRoute of node.staticRoutes) {
+						if (typeof staticRoute === 'string') {
+							staticRoute = crc16(staticRoute);
+						}
+						this.staticRoutes[staticRoute] = index;
+					}
+				}
+			});
 		} else {
 			this.keyPrefix = this.cluster!.keyPrefix || 'hfxbus';
 			Reflect.deleteProperty(this.cluster!, 'keyPrefix');
@@ -98,7 +117,11 @@ export class ConnectionManager {
 			return this.getClient(key);
 		}
 
-		const index = crc16(route) % this.nodes.nodes.length;
+		const routeHash = crc16(route);
+		let index = this.staticRoutes[routeHash];
+		if (index === undefined) {
+			index = routeHash % this.nodes.nodes.length;
+		}
 		const clientKey = `${key}-${index}`;
 
 		if (!(clientKey in this.clients)) {

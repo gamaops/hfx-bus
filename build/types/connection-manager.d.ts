@@ -2,6 +2,8 @@ import Redis, { Cluster, ClusterNode, ClusterOptions, RedisOptions } from 'iored
 export interface IRedisClientOptions {
     keyPrefix?: string;
     enablePipelining?: boolean;
+    sequence?: number;
+    staticRoutes?: Array<string | number>;
 }
 export interface IRedisClient extends IRedisClientOptions {
     usedBy?: number;
@@ -22,6 +24,7 @@ export declare class ConnectionManager {
     private startupNodes;
     private clients;
     private keyPrefix;
+    private staticRoutes;
     constructor({ standalone, cluster, startupNodes, nodes, }: {
         standalone?: RedisOptions & IRedisClientOptions;
         cluster?: ClusterOptions & IRedisClientOptions;

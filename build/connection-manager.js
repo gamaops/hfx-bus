@@ -13,13 +13,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
 const ioredis_1 = __importStar(require("ioredis"));
 const path_1 = __importDefault(require("path"));
-const crc16 = require('crc');
+const { crc16 } = require('crc');
 require('../lib/add-streams-to-ioredis')(ioredis_1.default);
 const XRETRY_LUA = fs_1.default.readFileSync(path_1.default.join(__dirname, '../lib/scripts/xretry.lua')).toString();
 class ConnectionManager {
     constructor({ standalone, cluster, startupNodes, nodes, }) {
         this.clients = {};
         this.keyPrefix = 'hfxbus';
+        this.staticRoutes = {};
         this.standalone = standalone;
         this.cluster = cluster;
         this.startupNodes = startupNodes;
@@ -31,6 +32,15 @@ class ConnectionManager {
         else if (this.nodes) {
             this.keyPrefix = this.nodes.keyPrefix || 'hfxbus';
             Reflect.deleteProperty(this.nodes, 'keyPrefix');
+            this.nodes.nodes.forEach((node, index) => {
+                if (node.staticRoutes) {
+                    for (let staticRoute of node.staticRoutes) {
+                        if (typeof staticRoute === 'string')
+                            staticRoute = crc16(staticRoute);
+                        this.staticRoutes[staticRoute] = index;
+                    }
+                }
+            });
         }
         else {
             this.keyPrefix = this.cluster.keyPrefix || 'hfxbus';
@@ -55,6 +65,11 @@ class ConnectionManager {
         });
     }
     static nodes(nodes) {
+        nodes.nodes = nodes.nodes.map((node, index) => {
+            if (!('sequence' in node))
+                node.sequence = index;
+            return node;
+        }).sort((a, b) => a.sequence - b.sequence);
         return new ConnectionManager({
             nodes: {
                 enablePipelining: true,
@@ -66,7 +81,10 @@ class ConnectionManager {
         if (!this.nodes) {
             return this.getClient(key);
         }
-        const index = crc16(route) % this.nodes.nodes.length;
+        const routeHash = crc16(route);
+        let index = this.staticRoutes[routeHash];
+        if (index === undefined)
+            index = routeHash % this.nodes.nodes.length;
         const clientKey = `${key}-${index}`;
         if (!(clientKey in this.clients)) {
             const client = new ioredis_1.default(this.nodes.nodes[index]);
