@@ -13,18 +13,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
 const ioredis_1 = __importStar(require("ioredis"));
 const path_1 = __importDefault(require("path"));
+const crc16 = require('crc');
 require('../lib/add-streams-to-ioredis')(ioredis_1.default);
 const XRETRY_LUA = fs_1.default.readFileSync(path_1.default.join(__dirname, '../lib/scripts/xretry.lua')).toString();
 class ConnectionManager {
-    constructor({ standalone, cluster, startupNodes, }) {
+    constructor({ standalone, cluster, startupNodes, nodes, }) {
         this.clients = {};
         this.keyPrefix = 'hfxbus';
         this.standalone = standalone;
         this.cluster = cluster;
         this.startupNodes = startupNodes;
+        this.nodes = nodes;
         if (this.standalone) {
             this.keyPrefix = this.standalone.keyPrefix || 'hfxbus';
             Reflect.deleteProperty(this.standalone, 'keyPrefix');
+        }
+        else if (this.nodes) {
+            this.keyPrefix = this.nodes.keyPrefix || 'hfxbus';
+            Reflect.deleteProperty(this.nodes, 'keyPrefix');
         }
         else {
             this.keyPrefix = this.cluster.keyPrefix || 'hfxbus';
@@ -48,6 +54,41 @@ class ConnectionManager {
             },
         });
     }
+    static nodes(nodes) {
+        return new ConnectionManager({
+            nodes: {
+                enablePipelining: true,
+                ...nodes,
+            },
+        });
+    }
+    getClientByRoute(key, route) {
+        if (!this.nodes) {
+            return this.getClient(key);
+        }
+        const index = crc16(route) % this.nodes.nodes.length;
+        const clientKey = `${key}-${index}`;
+        if (!(clientKey in this.clients)) {
+            const client = new ioredis_1.default(this.nodes.nodes[index]);
+            client.enablePipelining = this.nodes.enablePipelining;
+            this.addClient(clientKey, client);
+        }
+        return this.clients[clientKey];
+    }
+    getClients(key) {
+        if (!this.nodes) {
+            return [this.getClient(key)];
+        }
+        return this.nodes.nodes.map((node, index) => {
+            const clientKey = `${key}-${index}`;
+            if (!(clientKey in this.clients)) {
+                const client = new ioredis_1.default(node);
+                client.enablePipelining = this.nodes.enablePipelining;
+                this.addClient(clientKey, client);
+            }
+            return this.clients[clientKey];
+        });
+    }
     getClient(key) {
         if (!(key in this.clients)) {
             let client;
@@ -59,25 +100,7 @@ class ConnectionManager {
                 client = new ioredis_1.Cluster(this.startupNodes, this.cluster);
                 client.enablePipelining = this.cluster.enablePipelining;
             }
-            this.clients[key] = client;
-            client.keyPrefix = this.keyPrefix;
-            client.setMaxListeners(Infinity);
-            client.usedBy = 0;
-            client.stopped = false;
-            client.defineCommand('xretry', {
-                lua: XRETRY_LUA,
-                numberOfKeys: 6,
-            });
-            client.once('close', () => {
-                delete this.clients[key];
-            }).on('use', () => {
-                client.usedBy++;
-            }).on('release', () => {
-                client.usedBy--;
-                if (client.usedBy === 0) {
-                    client.emit('free');
-                }
-            });
+            this.addClient(key, client);
         }
         return this.clients[key];
     }
@@ -122,6 +145,27 @@ class ConnectionManager {
             await Promise.all(promises);
         }
         this.clients = {};
+    }
+    addClient(key, client) {
+        this.clients[key] = client;
+        client.keyPrefix = this.keyPrefix;
+        client.setMaxListeners(Infinity);
+        client.usedBy = 0;
+        client.stopped = false;
+        client.defineCommand('xretry', {
+            lua: XRETRY_LUA,
+            numberOfKeys: 6,
+        });
+        client.once('close', () => {
+            delete this.clients[key];
+        }).on('use', () => {
+            client.usedBy++;
+        }).on('release', () => {
+            client.usedBy--;
+            if (client.usedBy === 0) {
+                client.emit('free');
+            }
+        });
     }
 }
 exports.ConnectionManager = ConnectionManager;

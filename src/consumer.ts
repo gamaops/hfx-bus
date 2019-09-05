@@ -17,6 +17,7 @@ export interface IConsumerOptions {
 	retryLimit?: number;
 	claimPageSize?: number;
 	claimDeadline?: number;
+	route?: string;
 }
 
 const CONSUME_EVENT = Symbol('consume');
@@ -56,6 +57,7 @@ export class Consumer extends EventEmitter {
 			claimDeadline: 30000,
 			retryLimit: 3,
 			claimPageSize: 100,
+			route: options.route || options.group,
 			...options,
 		};
 		this.group = `${this.connection.getKeyPrefix()}:csr:${this.options.group}`;
@@ -105,7 +107,7 @@ export class Consumer extends EventEmitter {
 			if (this.consuming || this.processingCount >= this.options.concurrency!) {
 				return;
 			}
-			const client = this.connection.getClient(this.id) as Redis & {
+			const client = this.connection.getClientByRoute(this.id, this.options.route!) as Redis & {
 				stopped: any,
 				xretry: any,
 			};
@@ -186,7 +188,7 @@ export class Consumer extends EventEmitter {
 		this.processingCount++;
 
 		const job = new Job(
-			this.connection.getClient('jobs') as Redis,
+			this.connection.getClientByRoute('jobs', data.job) as Redis,
 			data.job,
 		) as IReceivedJob;
 
@@ -202,7 +204,7 @@ export class Consumer extends EventEmitter {
 
 		const streamName = this.processors[stream].stream;
 		const channel = `${this.connection.getKeyPrefix()}:chn:${streamName}:${data.prd}`;
-		const client = this.connection.getClient('streams') as Redis;
+		const client = this.connection.getClientByRoute('streams', streamName) as Redis;
 		const deadlineTimespan = this.processors[stream].deadline;
 
 		let deadline: any = null;
@@ -321,7 +323,7 @@ export class Consumer extends EventEmitter {
 	}
 
 	private async ensureStreamGroups() {
-		const client = this.connection.getClient(this.id) as Redis;
+		const client = this.connection.getClientByRoute(this.id, this.options.route!) as Redis;
 		for (const stream in this.processors) {
 			const processor = this.processors[stream];
 			const {

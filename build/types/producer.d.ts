@@ -10,11 +10,13 @@ export declare class Producer extends EventEmitter {
     constructor(connection: ConnectionManager);
     listen(...streams: Array<string>): Promise<void>;
     job(id?: string): Job;
-    send({ stream, job, capped, waitFor, rejectOnError, }: {
+    send({ stream, route, job, capped, waitFor, rejectOnError, }: {
         stream: string;
+        route?: string;
         job: Job;
         capped?: number;
         waitFor?: Array<string> | null;
         rejectOnError?: boolean;
     }): Promise<ISentJob>;
+    private bindClient;
 }

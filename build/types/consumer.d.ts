@@ -11,6 +11,7 @@ export interface IConsumerOptions {
     retryLimit?: number;
     claimPageSize?: number;
     claimDeadline?: number;
+    route?: string;
 }
 export declare class Consumer extends EventEmitter {
     readonly id: string;

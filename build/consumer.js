@@ -28,6 +28,7 @@ class Consumer extends eventemitter3_1.default {
             claimDeadline: 30000,
             retryLimit: 3,
             claimPageSize: 100,
+            route: options.route || options.group,
             ...options,
         };
         this.group = `${this.connection.getKeyPrefix()}:csr:${this.options.group}`;
@@ -57,7 +58,7 @@ class Consumer extends eventemitter3_1.default {
             if (this.consuming || this.processingCount >= this.options.concurrency) {
                 return;
             }
-            const client = this.connection.getClient(this.id);
+            const client = this.connection.getClientByRoute(this.id, this.options.route);
             this.consuming = true;
             client.emit('use');
             try {
@@ -113,7 +114,7 @@ class Consumer extends eventemitter3_1.default {
     }
     receive({ stream, id, data, }) {
         this.processingCount++;
-        const job = new job_1.Job(this.connection.getClient('jobs'), data.job);
+        const job = new job_1.Job(this.connection.getClientByRoute('jobs', data.job), data.job);
         job.release = () => {
             this.processingCount--;
             if (this.processingCount === 0) {
@@ -125,7 +126,7 @@ class Consumer extends eventemitter3_1.default {
         };
         const streamName = this.processors[stream].stream;
         const channel = `${this.connection.getKeyPrefix()}:chn:${streamName}:${data.prd}`;
-        const client = this.connection.getClient('streams');
+        const client = this.connection.getClientByRoute('streams', streamName);
         const deadlineTimespan = this.processors[stream].deadline;
         let deadline = null;
         if (deadlineTimespan && deadlineTimespan !== Infinity) {
@@ -202,7 +203,7 @@ class Consumer extends eventemitter3_1.default {
         }
     }
     async ensureStreamGroups() {
-        const client = this.connection.getClient(this.id);
+        const client = this.connection.getClientByRoute(this.id, this.options.route);
         for (const stream in this.processors) {
             const processor = this.processors[stream];
             const { fromId, } = this.processors[stream];

@@ -12,36 +12,35 @@ class Producer extends eventemitter3_1.default {
         super();
         this.connection = connection;
         this.id = nanoid_1.default(helpers_1.HFXBUS_ID_SIZE);
-        const client = this.connection.getClient('channels');
-        client.on('pmessage', (pattern, channel, message) => {
-            try {
-                message = JSON.parse(message);
-                this.emit(`${message.job}:${message.str}`, message.err, message.grp);
-                this.emit(message.str, message.err || null, message.job, message.grp);
-            }
-            catch (error) {
-                error.pubsub = { message, channel };
-                this.emit('error', helpers_1.setErrorKind(error, 'MESSAGE_PARSING'));
-            }
-        }).once('stopped', () => {
-            client.punsubscribe().finally(() => {
-                client.emit('release');
-            });
-        }).emit('use');
     }
     async listen(...streams) {
-        const client = this.connection.getClient('channels');
-        const patterns = streams.map((stream) => `${this.connection.getKeyPrefix()}:chn:${stream}:*`);
         if (streams.length === 0) {
-            patterns.push(`${this.connection.getKeyPrefix()}:chn:*:${this.id}`);
+            const clients = this.connection.getClients('channels');
+            await Promise.all(clients.map((client) => {
+                this.bindClient(client);
+                return client.psubscribe(`${this.connection.getKeyPrefix()}:chn:*:${this.id}`);
+            }));
+            return;
         }
-        await client.psubscribe(...patterns);
+        await Promise.all(streams.map((stream) => {
+            if (stream.includes('*')) {
+                const clients = this.connection.getClients('channels');
+                return Promise.all(clients.map((nodeClient) => {
+                    this.bindClient(nodeClient);
+                    return nodeClient.psubscribe(`${this.connection.getKeyPrefix()}:chn:${stream}:*`);
+                }));
+            }
+            const client = this.connection.getClientByRoute('channels', stream);
+            this.bindClient(client);
+            return client.psubscribe(`${this.connection.getKeyPrefix()}:chn:${stream}:*`);
+        }));
     }
     job(id) {
-        return new job_1.Job(this.connection.getClient('jobs'), id);
+        id = id || nanoid_1.default(helpers_1.HFXBUS_ID_SIZE);
+        return new job_1.Job(this.connection.getClientByRoute('jobs', id), id);
     }
-    async send({ stream, job, capped, waitFor, rejectOnError, }) {
-        const client = this.connection.getClient('streams');
+    async send({ stream, route, job, capped, waitFor, rejectOnError, }) {
+        const client = this.connection.getClientByRoute('streams', route || stream);
         let cappedOptions = [];
         if (capped) {
             cappedOptions = [
@@ -101,6 +100,30 @@ class Producer extends eventemitter3_1.default {
             await client.xadd(...xaddArgs);
         }
         return job;
+    }
+    bindClient(client) {
+        if (!client.boundProducers) {
+            client.boundProducers = new Set();
+        }
+        if (client.boundProducers.has(this.id)) {
+            return;
+        }
+        client.boundProducers.add(this.id);
+        client.on('pmessage', (pattern, channel, message) => {
+            try {
+                message = JSON.parse(message);
+                this.emit(`${message.job}:${message.str}`, message.err, message.grp);
+                this.emit(message.str, message.err || null, message.job, message.grp);
+            }
+            catch (error) {
+                error.pubsub = { message, channel };
+                this.emit('error', helpers_1.setErrorKind(error, 'MESSAGE_PARSING'));
+            }
+        }).once('stopped', () => {
+            client.punsubscribe().finally(() => {
+                client.emit('release');
+            });
+        }).emit('use');
     }
 }
 exports.Producer = Producer;
