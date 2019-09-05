@@ -35,8 +35,9 @@ class ConnectionManager {
             this.nodes.nodes.forEach((node, index) => {
                 if (node.staticRoutes) {
                     for (let staticRoute of node.staticRoutes) {
-                        if (typeof staticRoute === 'string')
+                        if (typeof staticRoute === 'string') {
                             staticRoute = crc16(staticRoute);
+                        }
                         this.staticRoutes[staticRoute] = index;
                     }
                 }
@@ -66,8 +67,9 @@ class ConnectionManager {
     }
     static nodes(nodes) {
         nodes.nodes = nodes.nodes.map((node, index) => {
-            if (!('sequence' in node))
+            if (!('sequence' in node)) {
                 node.sequence = index;
+            }
             return node;
         }).sort((a, b) => a.sequence - b.sequence);
         return new ConnectionManager({
@@ -83,8 +85,9 @@ class ConnectionManager {
         }
         const routeHash = crc16(route);
         let index = this.staticRoutes[routeHash];
-        if (index === undefined)
+        if (index === undefined) {
             index = routeHash % this.nodes.nodes.length;
+        }
         const clientKey = `${key}-${index}`;
         if (!(clientKey in this.clients)) {
             const client = new ioredis_1.default(this.nodes.nodes[index]);
