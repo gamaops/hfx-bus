@@ -11,6 +11,7 @@
 	* [method getClient](#ConnectionManager+getClient) returns a Redis client
 	* [method getKeyPrefix](#ConnectionManager+getKeyPrefix) returns the defined key prefix
 	* [method stop](#ConnectionManager+stop) stops all Redis clients
+* [DISTRIBUTED_ROUTING](#DISTRIBUTED_ROUTING) symbol to indicate the distributed routing method
 * [Producer](#Producer)
 	* [attribute id](#Producer+id) the producer's id
 	* [method listen](#Producer+listen) listen for events of streams
@@ -185,6 +186,18 @@ Stops all Redis clients.
 
 ----------------------
 
+<a name="DISTRIBUTED_ROUTING"></a>
+
+## DISTRIBUTED_ROUTING
+
+```typescript
+import { DISTRIBUTED_ROUTING } from 'hfxbus';
+```
+
+This symbol is used to indicate to producer and/or consumer that they will operate using distributed routing method. This method will use all nodes to put messages on streams and the consumers will read messages from all streams. This method has some tradeoffs that you can read more about on README.
+
+----------------------
+
 <a name="Producer"></a>
 
 ## Producer
@@ -245,7 +258,7 @@ Sends the job to the specified stream.
 
 * **options.stream** - Required string with the stream's name.
 * **options.job** - Required, the job instance.
-* **options.route** - If you're using client side partitioning, specify this value to route the message to the correct client.
+* **options.route** - If you're using client side partitioning, specify this value to route the message to the correct client. If you're using distributed routing you can pass the `DISTRIBUTED_ROUTING` symbol here.
 * **options.capped** - Maximum number of messages to keep in the stream, see the Redis XTRIM command to understand this options. By default, the stream won't be capped.
 * **options.waitFor** - Optional array of consumer groups indicating if the **decorated method finished** must be added to job, if this parameter is undefined or false (the defaul value) the behavior of send will be fire and forget, otherwise you can await for the job's completion for each group specified. Remember to call **Producer.listen()** before sending jobs if you want to await for jobs to be finished.
 * **options.rejectOnError** - Optional boolean, if you specify the **waitFor** property the default behavior is to return completions even if one consumer group had an error. If you specify this value as `true` the first consumer group to fail will cause the **decorated method finished** to reject with the completions received at time.
@@ -300,7 +313,7 @@ Consumer is the class that process jobs from streams. Consumers can also claim s
 
 * **connection** - An instance of ConnectionManager.
 * **options.group** - Required string with the consumer group name.
-* **options.route** - If you're using client side partitioning you must specify this value otherwise the value of **options.group** will be used as routing key.
+* **options.route** - If you're using client side partitioning you must specify this value otherwise the value of **options.group** will be used as routing key. If you're using distributed routing you can pass the `DISTRIBUTED_ROUTING` symbol here.
 * **options.id** - An optional string with the consumer's ID, if not specified an ID will be generated using the nanoid package.
 * **options.concurrency** - Maximum number of parallel jobs being processed by this consumer, the default value is `1`.
 * **options.blockTimeout** - Number of milliseconds to block the XREADGROUP command, the default value is `5000`.

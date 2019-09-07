@@ -11,6 +11,7 @@
 * Architecture and payload agnostic
 * Limit the number of parallel processing done by your microservices
 * Supports client side partitioning to achieve Redis HA
+* Supports distributed routing to distribute streams across nodes
 * Unit and E2E tested
 
 It's simple and effective to achieve high performance event-sourcing environment and microservice communication.
@@ -41,7 +42,7 @@ And finally, with [XTRIM](https://redis.io/commands/xtrim) you can keep your Red
 
 HFXBus provides client side partitioning through the method **ConnectionManager.nodes()**, but you need to be aware of the following points:
 
-* This partitioning is efficient for partitioning job's payload
+* This partitioning is efficient for partitioning job's payload.
 * Consumers group can't read from streams spread through multiple nodes, so you'll need to make them as static routing using the **route** parameter of consumers and the **staticRoutes** of connection parameters.
 * Always use the **sequence** parameter to specify the sequence of nodes when partitioning the data.
 * Producer's listen to Pub/Sub from a single connection only if the stream name is not a pattern, otherwise it'll listen to all nodes.
@@ -49,6 +50,20 @@ HFXBus provides client side partitioning through the method **ConnectionManager.
 This feature was designed to work with the following architecture:
 
 ![client side partitioning](https://raw.githubusercontent.com/gamaops/hfx-bus/master/doc/images/client-side-partitioning.png)
+
+## Distributed routing
+
+To really scale Redis horizontally using the architecture above HFXBus provides a routing method named "distributed routing":
+
+* Consumers will try to acquire messages from all connections using a round-robin algorithm to distribute the workload.
+* Producers will not more send messages using the specified **route**, instead they will use the job's ID as route.
+* You don't need to specify static routes.
+
+But there are tradeoffs with this method:
+
+* Stream messages IDs can be repeated across nodes.
+* The number of connections done by each consumer increases.
+* Currently HFXBus doesn't auto eject failing connections (maybe you want to open a PR for this feature?).
 
 ----------------------
 

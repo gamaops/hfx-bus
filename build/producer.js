@@ -40,7 +40,8 @@ class Producer extends eventemitter3_1.default {
         return new job_1.Job(this.connection.getClientByRoute('jobs', id), id);
     }
     async send({ stream, route, job, capped, waitFor, rejectOnError, }) {
-        const client = this.connection.getClientByRoute('streams', route || stream);
+        const clientRoute = route === helpers_1.DISTRIBUTED_ROUTING ? job.id : (route || stream).toString();
+        const client = this.connection.getClientByRoute('streams', clientRoute);
         let cappedOptions = [];
         if (capped) {
             cappedOptions = [

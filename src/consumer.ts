@@ -3,7 +3,7 @@ import { Redis } from 'ioredis';
 import nanoid from 'nanoid';
 import serializeError from 'serialize-error';
 import { ConnectionManager } from './connection-manager';
-import { HFXBUS_ID_SIZE, setErrorKind } from './helpers';
+import { DISTRIBUTED_ROUTING, HFXBUS_ID_SIZE, setErrorKind } from './helpers';
 import { IReceivedJob, Job } from './job';
 
 export type IStreamProcessor = (job: IReceivedJob) => Promise<any>;
@@ -17,7 +17,7 @@ export interface IConsumerOptions {
 	retryLimit?: number;
 	claimPageSize?: number;
 	claimDeadline?: number;
-	route?: string;
+	route?: string | symbol;
 }
 
 const CONSUME_EVENT = Symbol('consume');
@@ -26,13 +26,14 @@ export class Consumer extends EventEmitter {
 
 	public readonly id: string;
 
+	private clients: Array<Redis> = [];
 	private connection: ConnectionManager;
 	private processingCount: number = 0;
 	private streams: Array<string> = [];
 	private streamsIdMap: Array<string> = [];
 	private group: string;
-	private consuming: boolean = false;
 	private claimScheduled: boolean = false;
+	private consuming: boolean = false;
 	private claimer: any = null;
 	private options: IConsumerOptions;
 	private processors: {
@@ -50,7 +51,6 @@ export class Consumer extends EventEmitter {
 		super();
 		this.connection = connection;
 		this.id = options.id || nanoid(HFXBUS_ID_SIZE);
-		this.consuming = false;
 		this.options = {
 			concurrency: 1,
 			blockTimeout: 5000,
@@ -60,6 +60,9 @@ export class Consumer extends EventEmitter {
 			route: options.route || options.group,
 			...options,
 		};
+		if (this.options.route !== DISTRIBUTED_ROUTING && typeof this.options.route !== 'string') {
+			throw new Error(`Invalid route: ${this.options.route!.toString()}`);
+		}
 		this.group = `${this.connection.getKeyPrefix()}:csr:${this.options.group}`;
 	}
 
@@ -107,29 +110,24 @@ export class Consumer extends EventEmitter {
 			if (this.consuming || this.processingCount >= this.options.concurrency!) {
 				return;
 			}
-			const client = this.connection.getClientByRoute(this.id, this.options.route!) as Redis & {
-				stopped: any,
-				xretry: any,
-			};
 			this.consuming = true;
-			client.emit('use');
-			try {
-				if (client.stopped) {
-					await this.pause();
-				} else {
-					this.streams.push(this.streams.shift()!);
-					if (this.claimScheduled) {
-						await this.retry(client);
-						this.claimScheduled = false;
-					}
-					if (this.processingCount < this.options.concurrency!) {
-						await this.consume(client);
-					}
+			this.clients.push(this.clients.shift()!);
+			const clientConcurrency = Math.ceil(this.options.concurrency! / this.clients.length);
+			let freeSlots = this.options.concurrency! - this.processingCount;
+			await Promise.all(this.clients.map((client) => {
+				let count = clientConcurrency;
+				if (freeSlots <= count) {
+					count = freeSlots;
 				}
-			} catch (error) {
-				this.emit('error', setErrorKind(error, 'CONSUME_ERROR'));
-			}
-			client.emit('release');
+				if (freeSlots === 0) {
+					return;
+				}
+				freeSlots -= count;
+				return this.execute(client as Redis & {
+					stopped: any,
+					xretry: any,
+				}, count);
+			}));
 			this.consuming = false;
 			this.emit(CONSUME_EVENT);
 		}).emit(CONSUME_EVENT);
@@ -156,6 +154,7 @@ export class Consumer extends EventEmitter {
 					clearTimeout(timeoutId);
 				}
 				this.consuming = false;
+				this.clients = [];
 				resolve();
 			};
 			if (timeout) {
@@ -172,13 +171,42 @@ export class Consumer extends EventEmitter {
 
 	}
 
+	private async execute(
+		client: Redis & {
+			stopped: any,
+			xretry: any,
+		},
+		count: number,
+	) {
+		client.emit('use');
+		try {
+			if (client.stopped) {
+				await this.pause();
+			} else {
+				this.streams.push(this.streams.shift()!);
+				if (this.claimScheduled) {
+					count -= await this.retry(client, count);
+					this.claimScheduled = false;
+				}
+				if (count > 0) {
+					await this.consume(client, count);
+				}
+			}
+		} catch (error) {
+			this.emit('error', setErrorKind(error, 'CONSUME_ERROR'));
+		}
+		client.emit('release');
+	}
+
 	private receive({
 		stream,
 		id,
 		data,
+		client,
 	}: {
 		stream: string,
 		id: string,
+		client: Redis,
 		data: {
 			prd: string,
 			job: string,
@@ -204,7 +232,7 @@ export class Consumer extends EventEmitter {
 
 		const streamName = this.processors[stream].stream;
 		const channel = `${this.connection.getKeyPrefix()}:chn:${streamName}:${data.prd}`;
-		const client = this.connection.getClientByRoute('streams', streamName) as Redis;
+		const streamClient = this.connection.getClientByRoute('streams', streamName) as Redis;
 		const deadlineTimespan = this.processors[stream].deadline;
 
 		let deadline: any = null;
@@ -238,13 +266,13 @@ export class Consumer extends EventEmitter {
 				this.group,
 				id,
 			);
-			await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}"}`);
+			await streamClient.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}"}`);
 			finish();
 		};
 
 		job.reject = async (error) => {
 			const serialized = serializeError(error);
-			await client.publish(
+			await streamClient.publish(
 				channel,
 				`{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${JSON.stringify(serialized)}}`,
 			);
@@ -270,12 +298,12 @@ export class Consumer extends EventEmitter {
 
 	}
 
-	private async retry(client: Redis & { xretry: any }) {
+	private async retry(client: Redis & { xretry: any }, count: number): Promise<number> {
 		const jobs = await client.xretry(
 			this.group,
 			this.id,
 			this.options.retryLimit,
-			this.options.concurrency! - this.processingCount,
+			count,
 			this.options.claimPageSize,
 			this.options.claimDeadline,
 		);
@@ -290,19 +318,22 @@ export class Consumer extends EventEmitter {
 					data,
 					id,
 					stream,
+					client,
 				});
 				this.emit('claimed', job);
 			}
+			return jobs.length;
 		}
+		return 0;
 	}
 
-	private async consume(client: Redis) {
+	private async consume(client: Redis, count: number): Promise<number> {
 		const jobs = await client.xreadgroup(
 			'group',
 			this.group,
 			this.id,
 			'count',
-			this.options.concurrency! - this.processingCount,
+			count,
 			'block',
 			this.options.blockTimeout,
 			'streams',
@@ -316,14 +347,36 @@ export class Consumer extends EventEmitter {
 						data,
 						id,
 						stream,
+						client,
 					});
 				}
 			}
+			return jobs.length;
 		}
+		return 0;
 	}
 
 	private async ensureStreamGroups() {
-		const client = this.connection.getClientByRoute(this.id, this.options.route!) as Redis;
+
+		this.clients = [];
+
+		if (typeof this.options.route === 'string') {
+			await this.ensureStreamGroupsOnClient(
+				this.connection.getClientByRoute(this.id, this.options.route!) as Redis,
+			);
+			return;
+		} else if (this.options.route === DISTRIBUTED_ROUTING) {
+			const clients = this.connection.getClients(this.id);
+			await Promise.all(clients.map((client) => {
+				return this.ensureStreamGroupsOnClient(client as Redis);
+			}));
+			return;
+		}
+
+	}
+
+	private async ensureStreamGroupsOnClient(client: Redis) {
+
 		for (const stream in this.processors) {
 			const processor = this.processors[stream];
 			const {
@@ -337,6 +390,7 @@ export class Consumer extends EventEmitter {
 					fromId,
 					'mkstream',
 				);
+				this.clients.push(client);
 			} catch (error) {
 				if (error.message.includes('BUSYGROUP')) {
 					if (processor.setId) {
@@ -351,6 +405,7 @@ export class Consumer extends EventEmitter {
 							throw error;
 						}
 					}
+					this.clients.push(client);
 					continue;
 				}
 				throw error;

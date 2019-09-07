@@ -12,7 +12,7 @@ export declare class Producer extends EventEmitter {
     job(id?: string): Job;
     send({ stream, route, job, capped, waitFor, rejectOnError, }: {
         stream: string;
-        route?: string;
+        route?: string | symbol;
         job: Job;
         capped?: number;
         waitFor?: Array<string> | null;

@@ -1,4 +1,5 @@
 export const HFXBUS_ID_SIZE = 16;
+export const DISTRIBUTED_ROUTING = Symbol('DISTRIBUTED_ROUTING');
 
 export const withValue = (object: any, property: string, value: any) => Reflect.defineProperty(
 	object,
