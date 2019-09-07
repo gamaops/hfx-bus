@@ -1,4 +1,4 @@
-import { ConnectionManager, Consumer, Producer } from '../../src';
+import { ConnectionManager, Consumer, DISTRIBUTED_ROUTING, Producer } from '../../src';
 
 const connection = ConnectionManager.nodes({
 	nodes: [
@@ -9,27 +9,24 @@ const connection = ConnectionManager.nodes({
 		{
 			port: 6479,
 			host: '127.0.0.1',
-			staticRoutes: [
-				'myRoute',
-			],
 		},
 	],
 });
 
 const producer = new Producer(connection);
-const consumer = new Consumer(connection, { group: 'worldConcat', route: 'myRoute' });
+const consumer = new Consumer(connection, { group: 'worldConcat', route: DISTRIBUTED_ROUTING });
 
 consumer.process({
-	stream: 'concatPartitioning',
+	stream: 'concatDistributing',
 	processor: async (job) => {
 
-		console.log(`[Partitioning] Received job: ${job.id}`);
+		console.log(`[Distributing] Received job: ${job.id}`);
 
 		const {
 			inbound,
 		} = await job.get('inbound', false).del('inbound').pull();
 
-		console.log(`[Partitioning] Received inbound: ${inbound}`);
+		console.log(`[Distributing] Received inbound: ${inbound}`);
 
 		await job.set('outbound', `${inbound} world!`).push();
 
@@ -38,46 +35,47 @@ consumer.process({
 	},
 });
 
-const execute = async () => {
+const execute = async (count: number) => {
 
 	await producer.listen();
 
-	console.log(`[Partitioning] Producer is listening for messages (producer id is ${producer.id})`);
+	console.log(`[Distributing] Producer is listening for messages (producer id is ${producer.id})`);
 
 	const job = producer.job();
 
-	console.log(`[Partitioning] Created job: ${job.id}`);
+	console.log(`[Distributing] Created job: ${job.id}`);
 
 	await job.set('inbound', 'Hello').push();
 
 	await producer.send({
-		stream: 'concatPartitioning',
-		route: 'myRoute',
+		stream: 'concatDistributing',
+		route: DISTRIBUTED_ROUTING,
 		waitFor: [
 			'worldConcat',
 		],
 		job,
 	});
 
-	console.log(`[Partitioning] Sent job: ${job.id}`);
+	console.log(`[Distributing] Sent job: ${job.id}`);
 
 	await job.finished();
 
-	console.log(`[Partitioning] Finished job: ${job.id}`);
+	console.log(`[Distributing] Finished job: ${job.id}`);
 
 	const {
 		outbound,
 	} = await job.get('outbound', false).del('outbound').pull();
 
-	console.log(`[Partitioning] Outbound is: ${outbound}`);
+	console.log(`[Distributing] Outbound is (${count}): ${outbound}`);
 
 };
 
 consumer.play().then(() => {
-	console.log(`[Partitioning] Consumer is waiting for jobs (consumer id is ${consumer.id})`);
+	console.log(`[Distributing] Consumer is waiting for jobs (consumer id is ${consumer.id})`);
 	const array = new Array(10).fill(0);
+	let count = 0;
 	return Promise.all(array.map(() => {
-		return execute();
+		return execute(count++);
 	}));
 }).then(() => {
 	return consumer.pause();

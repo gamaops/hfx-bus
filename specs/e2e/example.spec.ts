@@ -12,13 +12,13 @@ consumer.process({
 	stream: 'concat',
 	processor: async (job) => {
 
-		console.log(`Received job: ${job.id}`);
+		console.log(`[Example] Received job: ${job.id}`);
 
 		const {
 			inbound,
 		} = await job.get('inbound', false).del('inbound').pull();
 
-		console.log(`Received inbound: ${inbound}`);
+		console.log(`[Example] Received inbound: ${inbound}`);
 
 		await job.set('outbound', `${inbound} world!`).push();
 
@@ -31,11 +31,11 @@ const execute = async () => {
 
 	await producer.listen();
 
-	console.log(`Producer is listening for messages (producer id is ${producer.id})`);
+	console.log(`[Example] Producer is listening for messages (producer id is ${producer.id})`);
 
 	const job = producer.job();
 
-	console.log(`Created job: ${job.id}`);
+	console.log(`[Example] Created job: ${job.id}`);
 
 	await job.set('inbound', 'Hello').push();
 
@@ -47,22 +47,22 @@ const execute = async () => {
 		job,
 	});
 
-	console.log(`Sent job: ${job.id}`);
+	console.log(`[Example] Sent job: ${job.id}`);
 
 	await job.finished();
 
-	console.log(`Finished job: ${job.id}`);
+	console.log(`[Example] Finished job: ${job.id}`);
 
 	const {
 		outbound,
 	} = await job.get('outbound', false).del('outbound').pull();
 
-	console.log(`Outbound is: ${outbound}`);
+	console.log(`[Example] Outbound is: ${outbound}`);
 
 };
 
 consumer.play().then(() => {
-	console.log(`Consumer is waiting for jobs (consumer id is ${consumer.id})`);
+	console.log(`[Example] Consumer is waiting for jobs (consumer id is ${consumer.id})`);
 	return execute();
 }).then(() => {
 	return consumer.pause();

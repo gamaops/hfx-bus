@@ -11,17 +11,18 @@ export interface IConsumerOptions {
     retryLimit?: number;
     claimPageSize?: number;
     claimDeadline?: number;
-    route?: string;
+    route?: string | symbol;
 }
 export declare class Consumer extends EventEmitter {
     readonly id: string;
+    private clients;
     private connection;
     private processingCount;
     private streams;
     private streamsIdMap;
     private group;
-    private consuming;
     private claimScheduled;
+    private consuming;
     private claimer;
     private options;
     private processors;
@@ -36,8 +37,10 @@ export declare class Consumer extends EventEmitter {
     }): Consumer;
     play(): Promise<void>;
     pause(timeout?: number): Promise<unknown>;
+    private execute;
     private receive;
     private retry;
     private consume;
     private ensureStreamGroups;
+    private ensureStreamGroupsOnClient;
 }

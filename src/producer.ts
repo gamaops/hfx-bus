@@ -2,7 +2,7 @@ import EventEmitter from 'eventemitter3';
 import { Redis } from 'ioredis';
 import nanoid from 'nanoid';
 import { ConnectionManager, RedisClient } from './connection-manager';
-import { HFXBUS_ID_SIZE, setErrorKind } from './helpers';
+import { DISTRIBUTED_ROUTING, HFXBUS_ID_SIZE, setErrorKind } from './helpers';
 import { ISentJob, Job } from './job';
 
 export interface IJobCompletion {
@@ -61,14 +61,16 @@ export class Producer extends EventEmitter {
 		rejectOnError,
 	}: {
 		stream: string,
-		route?: string,
+		route?: string | symbol,
 		job: Job,
 		capped?: number,
 		waitFor?: Array<string> | null,
 		rejectOnError?: boolean,
 	}): Promise<ISentJob> {
 
-		const client = this.connection.getClientByRoute('streams', route || stream) as Redis & { xadd: any };
+		const clientRoute: string = route === DISTRIBUTED_ROUTING ? job.id : (route || stream).toString();
+		const client = this.connection.getClientByRoute('streams', clientRoute) as Redis & { xadd: any };
+
 		let cappedOptions: Array<any> = [];
 		if (capped) {
 			cappedOptions = [

@@ -12,16 +12,16 @@ const CONSUME_EVENT = Symbol('consume');
 class Consumer extends eventemitter3_1.default {
     constructor(connection, options) {
         super();
+        this.clients = [];
         this.processingCount = 0;
         this.streams = [];
         this.streamsIdMap = [];
-        this.consuming = false;
         this.claimScheduled = false;
+        this.consuming = false;
         this.claimer = null;
         this.processors = {};
         this.connection = connection;
         this.id = options.id || nanoid_1.default(helpers_1.HFXBUS_ID_SIZE);
-        this.consuming = false;
         this.options = {
             concurrency: 1,
             blockTimeout: 5000,
@@ -31,6 +31,9 @@ class Consumer extends eventemitter3_1.default {
             route: options.route || options.group,
             ...options,
         };
+        if (this.options.route !== helpers_1.DISTRIBUTED_ROUTING && typeof this.options.route !== 'string') {
+            throw new Error(`Invalid route: ${this.options.route.toString()}`);
+        }
         this.group = `${this.connection.getKeyPrefix()}:csr:${this.options.group}`;
     }
     process({ stream, processor, readFrom = '>', fromId = '$', deadline = 30000, setId = false, }) {
@@ -58,28 +61,21 @@ class Consumer extends eventemitter3_1.default {
             if (this.consuming || this.processingCount >= this.options.concurrency) {
                 return;
             }
-            const client = this.connection.getClientByRoute(this.id, this.options.route);
             this.consuming = true;
-            client.emit('use');
-            try {
-                if (client.stopped) {
-                    await this.pause();
+            this.clients.push(this.clients.shift());
+            const clientConcurrency = Math.ceil(this.options.concurrency / this.clients.length);
+            let freeSlots = this.options.concurrency - this.processingCount;
+            await Promise.all(this.clients.map((client) => {
+                let count = clientConcurrency;
+                if (freeSlots <= count) {
+                    count = freeSlots;
                 }
-                else {
-                    this.streams.push(this.streams.shift());
-                    if (this.claimScheduled) {
-                        await this.retry(client);
-                        this.claimScheduled = false;
-                    }
-                    if (this.processingCount < this.options.concurrency) {
-                        await this.consume(client);
-                    }
+                if (freeSlots === 0) {
+                    return;
                 }
-            }
-            catch (error) {
-                this.emit('error', helpers_1.setErrorKind(error, 'CONSUME_ERROR'));
-            }
-            client.emit('release');
+                freeSlots -= count;
+                return this.execute(client, count);
+            }));
             this.consuming = false;
             this.emit(CONSUME_EVENT);
         }).emit(CONSUME_EVENT);
@@ -101,6 +97,7 @@ class Consumer extends eventemitter3_1.default {
                     clearTimeout(timeoutId);
                 }
                 this.consuming = false;
+                this.clients = [];
                 resolve();
             };
             if (timeout) {
@@ -112,7 +109,29 @@ class Consumer extends eventemitter3_1.default {
             this.once('drained', resolved);
         });
     }
-    receive({ stream, id, data, }) {
+    async execute(client, count) {
+        client.emit('use');
+        try {
+            if (client.stopped) {
+                await this.pause();
+            }
+            else {
+                this.streams.push(this.streams.shift());
+                if (this.claimScheduled) {
+                    count -= await this.retry(client, count);
+                    this.claimScheduled = false;
+                }
+                if (count > 0) {
+                    await this.consume(client, count);
+                }
+            }
+        }
+        catch (error) {
+            this.emit('error', helpers_1.setErrorKind(error, 'CONSUME_ERROR'));
+        }
+        client.emit('release');
+    }
+    receive({ stream, id, data, client, }) {
         this.processingCount++;
         const job = new job_1.Job(this.connection.getClientByRoute('jobs', data.job), data.job);
         job.release = () => {
@@ -126,7 +145,7 @@ class Consumer extends eventemitter3_1.default {
         };
         const streamName = this.processors[stream].stream;
         const channel = `${this.connection.getKeyPrefix()}:chn:${streamName}:${data.prd}`;
-        const client = this.connection.getClientByRoute('streams', streamName);
+        const streamClient = this.connection.getClientByRoute('streams', streamName);
         const deadlineTimespan = this.processors[stream].deadline;
         let deadline = null;
         if (deadlineTimespan && deadlineTimespan !== Infinity) {
@@ -149,12 +168,12 @@ class Consumer extends eventemitter3_1.default {
         };
         job.resolve = async () => {
             await client.xack(stream, this.group, id);
-            await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}"}`);
+            await streamClient.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}"}`);
             finish();
         };
         job.reject = async (error) => {
             const serialized = serialize_error_1.default(error);
-            await client.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${JSON.stringify(serialized)}}`);
+            await streamClient.publish(channel, `{"str":"${streamName}","grp":"${this.options.group}","job":"${data.job}","err":${JSON.stringify(serialized)}}`);
             finish();
         };
         this.processors[stream].processor(job).then(() => {
@@ -174,8 +193,8 @@ class Consumer extends eventemitter3_1.default {
             this.emit('error', helpers_1.setErrorKind(error, 'REJECT_JOB_ERROR'));
         });
     }
-    async retry(client) {
-        const jobs = await client.xretry(this.group, this.id, this.options.retryLimit, this.options.concurrency - this.processingCount, this.options.claimPageSize, this.options.claimDeadline);
+    async retry(client, count) {
+        const jobs = await client.xretry(this.group, this.id, this.options.retryLimit, count, this.options.claimPageSize, this.options.claimDeadline);
         if (jobs && jobs.length > 0) {
             for (const job of jobs) {
                 const { data, id, stream, } = job;
@@ -183,13 +202,16 @@ class Consumer extends eventemitter3_1.default {
                     data,
                     id,
                     stream,
+                    client,
                 });
                 this.emit('claimed', job);
             }
+            return jobs.length;
         }
+        return 0;
     }
-    async consume(client) {
-        const jobs = await client.xreadgroup('group', this.group, this.id, 'count', this.options.concurrency - this.processingCount, 'block', this.options.blockTimeout, 'streams', ...this.streams, ...this.streamsIdMap);
+    async consume(client, count) {
+        const jobs = await client.xreadgroup('group', this.group, this.id, 'count', count, 'block', this.options.blockTimeout, 'streams', ...this.streams, ...this.streamsIdMap);
         if (jobs) {
             for (const stream in jobs) {
                 for (const { id, data } of jobs[stream]) {
@@ -197,18 +219,35 @@ class Consumer extends eventemitter3_1.default {
                         data,
                         id,
                         stream,
+                        client,
                     });
                 }
             }
+            return jobs.length;
         }
+        return 0;
     }
     async ensureStreamGroups() {
-        const client = this.connection.getClientByRoute(this.id, this.options.route);
+        this.clients = [];
+        if (typeof this.options.route === 'string') {
+            await this.ensureStreamGroupsOnClient(this.connection.getClientByRoute(this.id, this.options.route));
+            return;
+        }
+        else if (this.options.route === helpers_1.DISTRIBUTED_ROUTING) {
+            const clients = this.connection.getClients(this.id);
+            await Promise.all(clients.map((client) => {
+                return this.ensureStreamGroupsOnClient(client);
+            }));
+            return;
+        }
+    }
+    async ensureStreamGroupsOnClient(client) {
         for (const stream in this.processors) {
             const processor = this.processors[stream];
             const { fromId, } = this.processors[stream];
             try {
                 await client.xgroup('create', stream, this.group, fromId, 'mkstream');
+                this.clients.push(client);
             }
             catch (error) {
                 if (error.message.includes('BUSYGROUP')) {
@@ -220,6 +259,7 @@ class Consumer extends eventemitter3_1.default {
                             throw error;
                         }
                     }
+                    this.clients.push(client);
                     continue;
                 }
                 throw error;

@@ -7,3 +7,4 @@ __export(require("./connection-manager"));
 __export(require("./job"));
 __export(require("./producer"));
 __export(require("./consumer"));
+__export(require("./helpers"));
