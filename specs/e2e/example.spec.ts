@@ -61,6 +61,8 @@ const execute = async () => {
 
 };
 
+console.log(`[Example] Consumer id is: ${consumer.id}`);
+
 consumer.play().then(() => {
 	console.log(`[Example] Consumer is waiting for jobs (consumer id is ${consumer.id})`);
 	return execute();

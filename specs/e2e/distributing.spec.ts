@@ -14,7 +14,7 @@ const connection = ConnectionManager.nodes({
 });
 
 const producer = new Producer(connection);
-const consumer = new Consumer(connection, { group: 'worldConcat', route: DISTRIBUTED_ROUTING });
+const consumer = new Consumer(connection, { group: 'worldConcat', route: DISTRIBUTED_ROUTING, concurrency: 2 });
 
 consumer.process({
 	stream: 'concatDistributing',
@@ -70,6 +70,8 @@ const execute = async (count: number) => {
 
 };
 
+console.log(`[Distributing] Consumer id is: ${consumer.id}`);
+
 consumer.play().then(() => {
 	console.log(`[Distributing] Consumer is waiting for jobs (consumer id is ${consumer.id})`);
 	const array = new Array(10).fill(0);
@@ -78,6 +80,7 @@ consumer.play().then(() => {
 		return execute(count++);
 	}));
 }).then(() => {
+	console.log('[Distributing] Paused');
 	return consumer.pause();
 }).then(() => {
 	return connection.stop();
