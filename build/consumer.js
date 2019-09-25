@@ -51,6 +51,7 @@ class Consumer extends eventemitter3_1.default {
         await this.ensureStreamGroups();
         this.streams = Object.keys(this.processors);
         this.streamsIdMap = this.streams.map((stream) => this.processors[stream].readFrom);
+        this.consuming = true;
         if (this.options.claimInterval) {
             this.claimer = setInterval(() => {
                 this.claimScheduled = true;
@@ -58,29 +59,51 @@ class Consumer extends eventemitter3_1.default {
         }
         this.removeAllListeners(CONSUME_EVENT);
         this.on(CONSUME_EVENT, async () => {
-            if (this.consuming || this.processingCount >= this.options.concurrency) {
+            if (!this.consuming || this.processingCount >= this.options.concurrency) {
                 return;
             }
-            this.consuming = true;
             this.clients.push(this.clients.shift());
-            const clientConcurrency = Math.ceil(this.options.concurrency / this.clients.length);
-            let freeSlots = this.options.concurrency - this.processingCount;
-            await Promise.all(this.clients.map((client) => {
-                let count = clientConcurrency;
-                if (freeSlots <= count) {
-                    count = freeSlots;
+            const freeSlots = this.options.concurrency - this.processingCount;
+            let countPerClient = freeSlots / this.clients.length;
+            let modulo = countPerClient % 1;
+            if (countPerClient < 1) {
+                countPerClient = 0;
+                modulo = freeSlots;
+            }
+            else if (modulo > 0) {
+                countPerClient = Math.floor(countPerClient);
+                modulo = Math.round(modulo * this.clients.length);
+            }
+            let blockedCount = 0;
+            await Promise.all(this.clients.map((clients, index) => {
+                const client = clients.blocking;
+                if (client.isBlocked) {
+                    blockedCount++;
+                    return Promise.resolve();
                 }
-                if (freeSlots === 0) {
-                    return;
+                let count = countPerClient;
+                if (modulo > 0) {
+                    count++;
+                    modulo--;
                 }
-                freeSlots -= count;
-                return this.execute(client, count);
+                if (count === 0) {
+                    return Promise.resolve();
+                }
+                client.isBlocked = true;
+                return this.execute(clients, count).then(() => {
+                    client.isBlocked = false;
+                }).catch((error) => {
+                    client.isBlocked = false;
+                    return Promise.reject(error);
+                });
             }));
-            this.consuming = false;
-            this.emit(CONSUME_EVENT);
+            if (blockedCount !== this.clients.length) {
+                process.nextTick(() => this.emit(CONSUME_EVENT));
+            }
         }).emit(CONSUME_EVENT);
     }
     async pause(timeout) {
+        this.consuming = false;
         this.removeAllListeners(CONSUME_EVENT);
         if (this.claimer) {
             clearInterval(this.claimer);
@@ -96,7 +119,6 @@ class Consumer extends eventemitter3_1.default {
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                 }
-                this.consuming = false;
                 this.clients = [];
                 resolve();
             };
@@ -251,7 +273,7 @@ class Consumer extends eventemitter3_1.default {
                 await client.xgroup('create', stream, this.group, fromId, 'mkstream');
                 this.clients.push({
                     blocking: client,
-                    aux: clientAux
+                    aux: clientAux,
                 });
             }
             catch (error) {
@@ -266,7 +288,7 @@ class Consumer extends eventemitter3_1.default {
                     }
                     this.clients.push({
                         blocking: client,
-                        aux: clientAux
+                        aux: clientAux,
                     });
                     continue;
                 }
