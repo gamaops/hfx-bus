@@ -1,4 +1,5 @@
 import EventEmitter from 'eventemitter3';
+import { Redis } from 'ioredis';
 import { ConnectionManager } from './connection-manager';
 import { IReceivedJob } from './job';
 export declare type IStreamProcessor = (job: IReceivedJob) => Promise<any>;
@@ -12,6 +13,12 @@ export interface IConsumerOptions {
     claimPageSize?: number;
     claimDeadline?: number;
     route?: string | symbol;
+}
+export interface IRedisClientPair {
+    blocking: Redis & {
+        xretry: any;
+    };
+    aux: Redis;
 }
 export declare class Consumer extends EventEmitter {
     readonly id: string;

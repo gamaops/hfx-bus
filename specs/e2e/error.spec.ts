@@ -13,7 +13,7 @@ consumer.process({
 	stream: 'error',
 	processor: async (job) => {
 
-		console.log(`Received job: ${job.id}`);
+		console.log(`[Error] Received job: ${job.id}`);
 
 		throw new Error('message');
 
@@ -24,11 +24,11 @@ const execute = async () => {
 
 	await producer.listen();
 
-	console.log(`Producer is listening for messages (producer id is ${producer.id})`);
+	console.log(`[Error] Producer is listening for messages (producer id is ${producer.id})`);
 
 	const job = producer.job();
 
-	console.log(`Created job: ${job.id}`);
+	console.log(`[Error] Created job: ${job.id}`);
 
 	await job.set('inbound', 'Hello').push();
 
@@ -43,7 +43,7 @@ const execute = async () => {
 		job,
 	});
 
-	console.log(`Sent job: ${job.id}`);
+	console.log(`[Error] Sent job: ${job.id}`);
 
 	try {
 		await job.finished();
@@ -56,7 +56,7 @@ const execute = async () => {
 };
 
 consumer.play().then(() => {
-	console.log(`Consumer is waiting for jobs (consumer id is ${consumer.id})`);
+	console.log(`[Error] Consumer is waiting for jobs (consumer id is ${consumer.id})`);
 	return execute();
 }).then(() => {
 	return consumer.pause();

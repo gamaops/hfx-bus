@@ -73,6 +73,8 @@ const execute = async () => {
 
 };
 
+console.log(`[Partitioning] Consumer id is: ${consumer.id}`);
+
 consumer.play().then(() => {
 	console.log(`[Partitioning] Consumer is waiting for jobs (consumer id is ${consumer.id})`);
 	const array = new Array(10).fill(0);

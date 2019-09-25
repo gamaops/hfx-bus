@@ -109,7 +109,8 @@ class Consumer extends eventemitter3_1.default {
             this.once('drained', resolved);
         });
     }
-    async execute(client, count) {
+    async execute(clients, count) {
+        const client = clients.blocking;
         client.emit('use');
         try {
             if (client.stopped) {
@@ -118,11 +119,11 @@ class Consumer extends eventemitter3_1.default {
             else {
                 this.streams.push(this.streams.shift());
                 if (this.claimScheduled) {
-                    count -= await this.retry(client, count);
+                    count -= await this.retry(clients, count);
                     this.claimScheduled = false;
                 }
                 if (count > 0) {
-                    await this.consume(client, count);
+                    await this.consume(clients, count);
                 }
             }
         }
@@ -193,8 +194,8 @@ class Consumer extends eventemitter3_1.default {
             this.emit('error', helpers_1.setErrorKind(error, 'REJECT_JOB_ERROR'));
         });
     }
-    async retry(client, count) {
-        const jobs = await client.xretry(this.group, this.id, this.options.retryLimit, count, this.options.claimPageSize, this.options.claimDeadline);
+    async retry(clients, count) {
+        const jobs = await clients.blocking.xretry(this.group, this.id, this.options.retryLimit, count, this.options.claimPageSize, this.options.claimDeadline);
         if (jobs && jobs.length > 0) {
             for (const job of jobs) {
                 const { data, id, stream, } = job;
@@ -202,7 +203,7 @@ class Consumer extends eventemitter3_1.default {
                     data,
                     id,
                     stream,
-                    client,
+                    client: clients.aux,
                 });
                 this.emit('claimed', job);
             }
@@ -210,8 +211,8 @@ class Consumer extends eventemitter3_1.default {
         }
         return 0;
     }
-    async consume(client, count) {
-        const jobs = await client.xreadgroup('group', this.group, this.id, 'count', count, 'block', this.options.blockTimeout, 'streams', ...this.streams, ...this.streamsIdMap);
+    async consume(clients, count) {
+        const jobs = await clients.blocking.xreadgroup('group', this.group, this.id, 'count', count, 'block', this.options.blockTimeout, 'streams', ...this.streams, ...this.streamsIdMap);
         if (jobs) {
             for (const stream in jobs) {
                 for (const { id, data } of jobs[stream]) {
@@ -219,7 +220,7 @@ class Consumer extends eventemitter3_1.default {
                         data,
                         id,
                         stream,
-                        client,
+                        client: clients.aux,
                     });
                 }
             }
@@ -230,24 +231,28 @@ class Consumer extends eventemitter3_1.default {
     async ensureStreamGroups() {
         this.clients = [];
         if (typeof this.options.route === 'string') {
-            await this.ensureStreamGroupsOnClient(this.connection.getClientByRoute(this.id, this.options.route));
+            await this.ensureStreamGroupsOnClient(this.connection.getClientByRoute(this.id, this.options.route), this.connection.getClientByRoute(this.id + '-aux', this.options.route));
             return;
         }
         else if (this.options.route === helpers_1.DISTRIBUTED_ROUTING) {
             const clients = this.connection.getClients(this.id);
-            await Promise.all(clients.map((client) => {
-                return this.ensureStreamGroupsOnClient(client);
+            const clientsAux = this.connection.getClients(this.id + '-aux');
+            await Promise.all(clients.map((client, index) => {
+                return this.ensureStreamGroupsOnClient(client, clientsAux[index]);
             }));
             return;
         }
     }
-    async ensureStreamGroupsOnClient(client) {
+    async ensureStreamGroupsOnClient(client, clientAux) {
         for (const stream in this.processors) {
             const processor = this.processors[stream];
             const { fromId, } = this.processors[stream];
             try {
                 await client.xgroup('create', stream, this.group, fromId, 'mkstream');
-                this.clients.push(client);
+                this.clients.push({
+                    blocking: client,
+                    aux: clientAux
+                });
             }
             catch (error) {
                 if (error.message.includes('BUSYGROUP')) {
@@ -259,7 +264,10 @@ class Consumer extends eventemitter3_1.default {
                             throw error;
                         }
                     }
-                    this.clients.push(client);
+                    this.clients.push({
+                        blocking: client,
+                        aux: clientAux
+                    });
                     continue;
                 }
                 throw error;

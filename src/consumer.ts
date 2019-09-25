@@ -20,13 +20,20 @@ export interface IConsumerOptions {
 	route?: string | symbol;
 }
 
+export interface IRedisClientPair {
+	blocking: Redis & {
+		xretry: any;
+	};
+	aux: Redis;
+}
+
 const CONSUME_EVENT = Symbol('consume');
 
 export class Consumer extends EventEmitter {
 
 	public readonly id: string;
 
-	private clients: Array<Redis> = [];
+	private clients: Array<IRedisClientPair> = [];
 	private connection: ConnectionManager;
 	private processingCount: number = 0;
 	private streams: Array<string> = [];
@@ -98,6 +105,7 @@ export class Consumer extends EventEmitter {
 
 		this.streams = Object.keys(this.processors);
 		this.streamsIdMap = this.streams.map((stream) => this.processors[stream].readFrom);
+		this.consuming = true;
 
 		if (this.options.claimInterval) {
 			this.claimer = setInterval(() => {
@@ -106,35 +114,53 @@ export class Consumer extends EventEmitter {
 		}
 
 		this.removeAllListeners(CONSUME_EVENT);
+
 		this.on(CONSUME_EVENT, async () => {
-			if (this.consuming || this.processingCount >= this.options.concurrency!) {
+			if (!this.consuming || this.processingCount >= this.options.concurrency!) {
 				return;
 			}
-			this.consuming = true;
 			this.clients.push(this.clients.shift()!);
-			const clientConcurrency = Math.ceil(this.options.concurrency! / this.clients.length);
-			let freeSlots = this.options.concurrency! - this.processingCount;
-			await Promise.all(this.clients.map((client) => {
-				let count = clientConcurrency;
-				if (freeSlots <= count) {
-					count = freeSlots;
+			const freeSlots = this.options.concurrency! - this.processingCount;
+			let countPerClient = freeSlots / this.clients.length;
+			let modulo = countPerClient % 1;
+			if (countPerClient < 1) {
+				countPerClient = 0;
+				modulo = freeSlots;
+			} else if (modulo > 0) {
+				countPerClient = Math.floor(countPerClient);
+				modulo = Math.round(modulo * this.clients.length);
+			}
+			let blockedCount = 0;
+			await Promise.all(this.clients.map((clients, index) => {
+				const client = clients.blocking as Redis & { xretry: any, isBlocked: boolean };
+				if (client.isBlocked) {
+					blockedCount++;
+					return Promise.resolve();
 				}
-				if (freeSlots === 0) {
-					return;
+				let count = countPerClient;
+				if (modulo > 0) {
+					count++;
+					modulo--;
 				}
-				freeSlots -= count;
-				return this.execute(client as Redis & {
-					stopped: any,
-					xretry: any,
-				}, count);
+				if (count === 0)
+					return Promise.resolve();
+				client.isBlocked = true;
+				return this.execute(clients, count).then(() => {
+					client.isBlocked = false;
+				}).catch((error) => {
+					client.isBlocked = false;
+					return Promise.reject(error);
+				});
 			}));
-			this.consuming = false;
-			this.emit(CONSUME_EVENT);
+			if (blockedCount !== this.clients.length)
+				process.nextTick(() => this.emit(CONSUME_EVENT));
 		}).emit(CONSUME_EVENT);
 
 	}
 
 	public async pause(timeout?: number) {
+
+		this.consuming = false;
 
 		this.removeAllListeners(CONSUME_EVENT);
 
@@ -153,7 +179,6 @@ export class Consumer extends EventEmitter {
 				if (timeoutId) {
 					clearTimeout(timeoutId);
 				}
-				this.consuming = false;
 				this.clients = [];
 				resolve();
 			};
@@ -172,12 +197,13 @@ export class Consumer extends EventEmitter {
 	}
 
 	private async execute(
-		client: Redis & {
-			stopped: any,
-			xretry: any,
-		},
+		clients: IRedisClientPair,
 		count: number,
 	) {
+		const client = clients.blocking as Redis & {
+			stopped: any,
+			xretry: any,
+		};
 		client.emit('use');
 		try {
 			if (client.stopped) {
@@ -185,11 +211,11 @@ export class Consumer extends EventEmitter {
 			} else {
 				this.streams.push(this.streams.shift()!);
 				if (this.claimScheduled) {
-					count -= await this.retry(client, count);
+					count -= await this.retry(clients, count);
 					this.claimScheduled = false;
 				}
 				if (count > 0) {
-					await this.consume(client, count);
+					await this.consume(clients, count);
 				}
 			}
 		} catch (error) {
@@ -298,8 +324,8 @@ export class Consumer extends EventEmitter {
 
 	}
 
-	private async retry(client: Redis & { xretry: any }, count: number): Promise<number> {
-		const jobs = await client.xretry(
+	private async retry(clients: IRedisClientPair, count: number): Promise<number> {
+		const jobs = await clients.blocking.xretry(
 			this.group,
 			this.id,
 			this.options.retryLimit,
@@ -318,7 +344,7 @@ export class Consumer extends EventEmitter {
 					data,
 					id,
 					stream,
-					client,
+					client: clients.aux,
 				});
 				this.emit('claimed', job);
 			}
@@ -327,8 +353,8 @@ export class Consumer extends EventEmitter {
 		return 0;
 	}
 
-	private async consume(client: Redis, count: number): Promise<number> {
-		const jobs = await client.xreadgroup(
+	private async consume(clients: IRedisClientPair, count: number): Promise<number> {
+		const jobs = await clients.blocking.xreadgroup(
 			'group',
 			this.group,
 			this.id,
@@ -347,7 +373,7 @@ export class Consumer extends EventEmitter {
 						data,
 						id,
 						stream,
-						client,
+						client: clients.aux,
 					});
 				}
 			}
@@ -362,20 +388,22 @@ export class Consumer extends EventEmitter {
 
 		if (typeof this.options.route === 'string') {
 			await this.ensureStreamGroupsOnClient(
-				this.connection.getClientByRoute(this.id, this.options.route!) as Redis,
+				this.connection.getClientByRoute(this.id, this.options.route!) as Redis & { xretry: any },
+				this.connection.getClientByRoute(this.id + '-aux', this.options.route!) as Redis,
 			);
 			return;
 		} else if (this.options.route === DISTRIBUTED_ROUTING) {
 			const clients = this.connection.getClients(this.id);
-			await Promise.all(clients.map((client) => {
-				return this.ensureStreamGroupsOnClient(client as Redis);
+			const clientsAux = this.connection.getClients(this.id + '-aux') as Array<Redis>;
+			await Promise.all(clients.map((client, index) => {
+				return this.ensureStreamGroupsOnClient(client as Redis & { xretry: any }, clientsAux[index]);
 			}));
 			return;
 		}
 
 	}
 
-	private async ensureStreamGroupsOnClient(client: Redis) {
+	private async ensureStreamGroupsOnClient(client: Redis & { xretry: any }, clientAux: Redis) {
 
 		for (const stream in this.processors) {
 			const processor = this.processors[stream];
@@ -390,7 +418,10 @@ export class Consumer extends EventEmitter {
 					fromId,
 					'mkstream',
 				);
-				this.clients.push(client);
+				this.clients.push({
+					blocking: client,
+					aux: clientAux,
+				});
 			} catch (error) {
 				if (error.message.includes('BUSYGROUP')) {
 					if (processor.setId) {
@@ -405,7 +436,10 @@ export class Consumer extends EventEmitter {
 							throw error;
 						}
 					}
-					this.clients.push(client);
+					this.clients.push({
+						blocking: client,
+						aux: clientAux,
+					});
 					continue;
 				}
 				throw error;
