@@ -1,3 +1,13 @@
+## 2019-09-25T00:44:13.225Z
+### 🐛 - fixing a bug (project)
+
+#### #21
+
+- Fix use of the same blocking connection to send jobs acks
+- Improve the distribution algorithm
+
+-----------------------------
+
 ## 2019-09-07T10:17:00.529Z
 ### 🆕 - add code or file(s) (project)
 
