@@ -142,8 +142,9 @@ export class Consumer extends EventEmitter {
 					count++;
 					modulo--;
 				}
-				if (count === 0)
+				if (count === 0) {
 					return Promise.resolve();
+				}
 				client.isBlocked = true;
 				return this.execute(clients, count).then(() => {
 					client.isBlocked = false;
@@ -152,8 +153,9 @@ export class Consumer extends EventEmitter {
 					return Promise.reject(error);
 				});
 			}));
-			if (blockedCount !== this.clients.length)
+			if (blockedCount !== this.clients.length) {
 				process.nextTick(() => this.emit(CONSUME_EVENT));
+			}
 		}).emit(CONSUME_EVENT);
 
 	}

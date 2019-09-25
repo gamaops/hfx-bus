@@ -80,7 +80,7 @@ consumer.play().then(() => {
 		return execute(count++);
 	}));
 }).then(() => {
-	console.log('[Distributing] Paused')
+	console.log('[Distributing] Paused');
 	return consumer.pause();
 }).then(() => {
 	return connection.stop();
