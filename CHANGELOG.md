@@ -1,3 +1,12 @@
+## 2019-09-25T00:47:46.937Z
+### 🎨 - improving the format/structure of the code (project)
+
+#### #21
+
+- Fix lint errors
+
+-----------------------------
+
 ## 2019-09-25T00:44:13.225Z
 ### 🐛 - fixing a bug (project)
 
