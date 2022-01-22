@@ -95,7 +95,7 @@
     "crc": "^3.8.0",
     "eventemitter3": "^4.0.0",
     "ioredis": "^4.14.0",
-    "nanoid": "^2.0.3",
+    "nanoid": "^3.1.31",
     "serialize-error": "^4.1.0"
   }
 }
