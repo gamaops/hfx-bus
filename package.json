@@ -79,7 +79,7 @@
     "@types/uuid": "^3.4.5",
     "benchmark": "^2.1.4",
     "chai": "^4.2.0",
-    "mocha": "^6.2.0",
+    "mocha": "^10.2.0",
     "mock-require": "^3.0.3",
     "module-alias": "^2.2.1",
     "nyc": "^14.1.1",
